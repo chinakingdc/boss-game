@@ -108,10 +108,10 @@ function initPlayer() { playerX = W/2; }
 
 // ===== ENEMIES =====
 function makeSoldier() {
-  return { t:'s', x:W*0.05+Math.random()*W*0.9, y:-20, hp:2, mh:2, spd:1.5+Math.random()*0.7, w:20, h:24, f:0, hit:false };
+  return { t:'s', x:W*0.05+Math.random()*W*0.9, y:5, hp:2, mh:2, spd:1.5+Math.random()*0.7, w:20, h:24, f:0, hit:false };
 }
 function makeElite() {
-  return { t:'e', x:W*0.1+Math.random()*W*0.8, y:-25, hp:5, mh:5, spd:1.2+Math.random()*0.3, w:26, h:32, f:0, a:Math.random()*6, hit:false };
+  return { t:'e', x:W*0.1+Math.random()*W*0.8, y:5, hp:5, mh:5, spd:1.2+Math.random()*0.3, w:26, h:32, f:0, a:Math.random()*6, hit:false };
 }
 function makeBoss() {
   return {
@@ -141,6 +141,8 @@ function nextWave() {
   }
   spawnTimer=0;
   state='PLAYING';
+  // Heal 1 HP between waves so player doesn't die immediately
+  hp = Math.min(maxHp, hp + 1);
 }
 
 // ===== AUTO SHOOT =====
@@ -152,7 +154,7 @@ function autoShoot() {
   const pow = powerupTimer>0;
   autoCD = pow?6:8;
   // Fast, straight, big arrow
-  arrows.push({x:playerX, y:playerCY()-10, vx:0, vy:-25, dmg:pow?2:1, size:pow?14:10, life:180, pow});
+  arrows.push({x:playerX, y:playerCY()-10, vx:0, vy:-25, dmg:pow?2:1, size:pow?14:10, life:30, pow});
   screenShake(pow?3:1.5);
 }
 
