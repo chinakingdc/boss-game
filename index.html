@@ -3,40 +3,88 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>弹幕防线 · 试玩版</title>
+<title>弹幕防线</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{background:#070505;display:flex;justify-content:center;align-items:center;height:100dvh;overflow:hidden;font-family:"PingFang SC","Hirayino Sans GB","Microsoft YaHei",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
 #game{width:100%;max-width:420px;height:100dvh;position:relative;overflow:hidden;background:#070505}
 canvas#main{width:100%;height:100%;display:block;touch-action:none}
-.overlay{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(12,6,6,0.96),rgba(0,0,0,0.98));transition:opacity 0.4s;pointer-events:auto}
+/* Overlay base */
+.overlay{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(12,6,6,0.96),rgba(0,0,0,0.98));transition:opacity 0.4s ease;pointer-events:auto}
 .overlay.hidden{opacity:0;pointer-events:none}
+/* Ink scroll frame */
+.scroll-frame{position:relative;width:82%;max-width:320px;min-height:200px;padding:36px 24px;margin:0 auto}
+.scroll-frame::before{content:'';position:absolute;inset:0;border:1px solid rgba(160,120,100,0.25);border-radius:4px;background:rgba(8,5,4,0.85)}
+.scroll-frame::after{content:'';position:absolute;top:8px;left:8px;right:8px;bottom:8px;border:1px solid rgba(160,120,100,0.1);border-radius:2px;pointer-events:none}
+.scroll-frame>*{position:relative;z-index:1}
+/* Title */
+.title-main{font-size:36px;font-weight:700;letter-spacing:10px;color:#b09080;margin-bottom:4px}
+.title-sub{font-size:12px;color:#705a4a;letter-spacing:8px;font-weight:300;margin-bottom:20px}
+.title-deco{width:52px;height:1px;background:linear-gradient(90deg,transparent,#8a6050,transparent);margin:0 auto 16px}
+/* Seal stamp button */
+.seal-btn{display:inline-block;padding:10px 36px;border:2px solid #8a3a2a;background:transparent;color:#cc6050;font-size:15px;letter-spacing:8px;cursor:pointer;transition:all 0.25s;font-family:inherit;position:relative}
+.seal-btn:active{background:rgba(138,58,42,0.12);border-color:#cc6050;color:#e07050}
+.seal-btn::before{content:'';position:absolute;inset:-3px;border:1px solid rgba(138,58,42,0.2);pointer-events:none}
+/* Ghost btn */
+.ghost-btn{display:inline-block;padding:8px 20px;border:1px solid rgba(160,120,100,0.2);background:transparent;color:#8a7a6a;font-size:13px;letter-spacing:6px;cursor:pointer;transition:all 0.2s;font-family:inherit}
+.ghost-btn:active{background:rgba(160,120,100,0.06);border-color:#8a7a6a;color:#b09080}
+/* Story scroll */
+.story-text{color:#b09080;font-size:13px;line-height:2.2;letter-spacing:3px;text-align:center;white-space:pre-line;padding:8px 4px}
+.story-text .em{color:#cc7050}
+/* Chapter node */
+.chapter-node{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 28px;border:1px solid rgba(160,120,100,0.2);background:rgba(8,5,4,0.7);cursor:pointer;transition:all 0.25s;border-radius:3px}
+.chapter-node.active{border-color:#8a6050}
+.chapter-node.locked{opacity:0.3;cursor:default;border-color:rgba(80,60,50,0.15)}
+.chapter-node.locked .ch-name{color:#5a4a3a}
+.chapter-node:not(.locked):active{background:rgba(160,120,100,0.06);border-color:#a08060}
+.ch-name{color:#b09080;font-size:14px;letter-spacing:4px}
+.ch-sub{color:#6a5a4a;font-size:11px;letter-spacing:2px}
+.ch-lock{color:#4a3a2a;font-size:16px}
+/* Upgrade tree */
+.up-node{display:flex;flex-direction:column;align-items:center;padding:10px 14px;border:1px solid rgba(160,120,100,0.15);background:rgba(8,5,4,0.6);border-radius:3px;cursor:pointer;transition:all 0.2s;min-width:72px}
+.up-node.maxed{border-color:#4a5a3a;opacity:0.6;cursor:default}
+.up-node:not(.maxed):active{border-color:#a08060;background:rgba(160,120,100,0.06)}
+.up-icon{font-size:22px;margin-bottom:2px}
+.up-name{color:#b09080;font-size:11px;letter-spacing:2px}
+.up-level{color:#6a5a4a;font-size:10px;margin-top:2px}
+.up-cost{color:#8a7a4a;font-size:10px}
+/* Animations */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes typewriter{from{width:0}to{width:100%}}
+@keyframes inkSplash{0%{clip-path:circle(0% at 50% 50%)}100%{clip-path:circle(100% at 50% 50%)}}
+@keyframes inkDrop{0%{opacity:0;transform:translateY(-20px) scaleY(1.5)}40%{opacity:1}100%{opacity:0;transform:translateY(60px) scaleY(0.3)}}
+.anim-ink{animation:inkSplash 1.2s ease-out both}
+.anim-fade{animation:fadeInUp 0.6s ease-out both}
+.anim-fade-d1{animation-delay:0.15s}.anim-fade-d2{animation-delay:0.35s}.anim-fade-d3{animation-delay:0.55s}.anim-fade-d4{animation-delay:0.75s}
+/* Stun overlay */
+#stun-overlay{position:absolute;inset:0;z-index:15;display:none;align-items:center;justify-content:center;pointer-events:none;background:rgba(80,20,20,0)}
+#stun-overlay.active{display:flex;background:rgba(80,20,20,0.2);transition:background 0.2s}
+#stun-text{color:#ff4040;font-size:32px;font-weight:bold;letter-spacing:12px;text-shadow:0 0 40px #ff4040;animation:stunPulse 0.3s alternate infinite}
+@keyframes stunPulse{from{opacity:0.6;transform:scale(1)}to{opacity:1;transform:scale(1.05)}}
+/* Wheel */
 .wheel-bg{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,0.78);display:none;align-items:center;justify-content:center}
 .wheel-bg.active{display:flex}
 #wheel-wrap{position:relative;width:min(240px,60vw);height:min(240px,60vw)}
-#wheel-hint{position:absolute;top:10%;left:50%;transform:translateX(-50%);color:#b09850;font-size:12px;letter-spacing:4px;z-index:25;display:none;font-weight:300;text-align:center}
+#wheel-hint{position:absolute;top:8%;left:50%;transform:translateX(-50%);color:#b09850;font-size:12px;letter-spacing:4px;z-index:25;display:none;font-weight:300;text-align:center}
 canvas#wheel-canvas{width:100%;height:100%}
 #wheel-rating{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%) scale(0);pointer-events:none;z-index:30;transition:transform 0.1s cubic-bezier(0.34,1.56,0.64,1)}
 #wheel-rating.show{transform:translate(-50%,-60%) scale(1)}
 #wheel-rating span{font-size:38px;font-weight:700;letter-spacing:6px;text-shadow:0 0 50px currentColor}
-#stun-overlay{position:absolute;inset:0;z-index:15;display:none;align-items:center;justify-content:center;pointer-events:none;background:rgba(80,20,20,0)}
-#stun-overlay.active{display:flex;background:rgba(80,20,20,0.2);transition:background 0.2s}
-#stun-text{color:#ff4040;font-size:32px;font-weight:bold;letter-spacing:12px;text-shadow:0 0 40px #ff4040,0 0 80px #ff2020;animation:stunPulse 0.3s ease-in-out infinite alternate}
-@keyframes stunPulse{from{opacity:0.6;transform:scale(1)}to{opacity:1;transform:scale(1.05)}}
-.death-screen{z-index:60}.btn{padding:12px 44px;border:1px solid rgba(160,120,100,0.3);background:transparent;color:#b09080;font-size:15px;letter-spacing:6px;cursor:pointer;transition:all 0.25s;font-family:inherit;border-radius:2px}
-.btn:active{background:rgba(160,120,100,0.08);border-color:#a08060}
-.title-main{font-size:38px;font-weight:700;letter-spacing:8px;color:#b09080;margin-bottom:2px}
-.title-sub{font-size:13px;color:#705a4a;letter-spacing:10px;font-weight:300;margin-bottom:30px}
-.title-deco{width:44px;height:1px;background:linear-gradient(90deg,transparent,#8a6050,transparent);margin-bottom:12px}
-@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-.fade-in{animation:fadeInUp 0.5s ease-out both}
-.fade-in-d1{animation-delay:0.2s}.fade-in-d2{animation-delay:0.4s}.fade-in-d3{animation-delay:0.6s}
+/* Page system */
+.page{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.3s}
+.page.hidden{opacity:0;pointer-events:none}
+.death-screen{z-index:60}
+.win-screen{z-index:55}
 </style>
 </head>
 <body>
 <div id="game">
   <canvas id="main"></canvas>
+  
+  <!-- Stun overlay -->
   <div id="stun-overlay"><div id="stun-text">瘫痪</div></div>
+  
+  <!-- Wheel overlay -->
   <div id="wheel-hint">催动内力 · 记住顺序</div>
   <div class="wheel-bg" id="wheel-overlay">
     <div id="wheel-wrap">
@@ -44,31 +92,153 @@ canvas#wheel-canvas{width:100%;height:100%}
       <div id="wheel-rating"><span></span></div>
     </div>
   </div>
-  <div id="start-overlay" class="overlay">
-    <div class="title-deco fade-in"></div>
-    <div class="title-main fade-in fade-in-d1">弹 幕 防 线</div>
-    <div class="title-sub fade-in fade-in-d2">· 试 玩 版 ·</div>
-    <div class="fade-in fade-in-d2" style="color:#8a7a6a;font-size:12px;letter-spacing:3px;line-height:2;text-align:center;margin-bottom:24px">
-      <div>滑动屏幕 · 左右走位</div>
-      <div>弓箭自动 · 向上射击</div>
-      <div>BOSS战时 · 破解剑盾弓</div>
+
+  <!-- === PAGE: Story Scroll Intro === -->
+  <div id="page-story" class="page">
+    <div class="scroll-frame anim-ink">
+      <div class="title-deco" style="margin-bottom:14px"></div>
+      <div class="story-text" id="story-content">
+       天元历一千二百年·暗渊之门洞开
+       妖魔自裂隙涌出·天下大乱
+
+       最后一位弓手门徒
+       <span class="em">云逸</span>
+       踏上征途
+
+       此去·便是决死
+      </div>
+      <div style="margin-top:14px;text-align:center">
+        <button class="seal-btn" id="story-continue" style="font-size:13px;padding:8px 28px">启 程</button>
+      </div>
     </div>
-    <button class="btn fade-in fade-in-d3" id="start-btn">进 入 关 卡</button>
   </div>
-  <div id="death-overlay" class="overlay hidden death-screen">
-    <div class="title-deco fade-in"></div>
-    <div class="title-main fade-in fade-in-d1" style="color:#904040;font-size:32px;letter-spacing:6px">败 北</div>
-    <div class="fade-in fade-in-d2" id="death-reason" style="color:#8a7a6a;font-size:13px;letter-spacing:2px;margin:16px 0 24px"></div>
-    <div class="result-stats fade-in fade-in-d2" id="death-stats" style="color:#8a7a6a;font-size:12px;margin-bottom:24px;text-align:center"></div>
-    <button class="btn fade-in fade-in-d3" id="retry-btn">再 试 一 次</button>
+
+  <!-- === PAGE: Main Menu === -->
+  <div id="page-menu" class="page hidden">
+    <div class="title-deco anim-fade anim-fade-d1"></div>
+    <div class="title-main anim-fade anim-fade-d1">弹 幕 防 线</div>
+    <div class="title-sub anim-fade anim-fade-d2">· 墨 染 江 湖 ·</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:28px;align-items:center">
+      <button class="seal-btn anim-fade anim-fade-d3" id="menu-start" style="min-width:160px">开始征程</button>
+      <button class="ghost-btn anim-fade anim-fade-d4" id="menu-upgrade" style="min-width:160px">修 炼</button>
+    </div>
+    <div style="position:absolute;bottom:40px;color:#3a2a1a;font-size:10px;letter-spacing:3px">一人一弓·独对暗渊</div>
+  </div>
+
+  <!-- === PAGE: Chapter Select === -->
+  <div id="page-chapter" class="page hidden">
+    <div style="position:absolute;top:24px;left:16px">
+      <button class="ghost-btn" id="ch-back" style="font-size:11px;padding:4px 12px">← 返回</button>
+    </div>
+    <div class="title-deco anim-fade" style="margin-top:10px"></div>
+    <div class="title-sub anim-fade anim-fade-d1" style="margin-bottom:24px;font-size:12px;letter-spacing:6px">选 择 关 卡</div>
+    <div id="chapter-list" style="display:flex;flex-direction:column;gap:14px;align-items:center;width:80%;max-width:300px">
+      <div class="chapter-node active" data-chapter="0">
+        <div class="ch-name">第一章</div>
+        <div class="ch-sub">黑 风 山</div>
+        <div style="color:#6a4a3a;font-size:10px;letter-spacing:2px">暗渊的爪牙·在此集结</div>
+      </div>
+      <div class="chapter-node locked" data-chapter="1">
+        <div class="ch-lock">🔒</div>
+        <div class="ch-name">第二章</div>
+        <div class="ch-sub">寒 冰 谷</div>
+        <div style="color:#3a4a4a;font-size:10px;letter-spacing:2px">通关第一章解锁</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === PAGE: Upgrade === -->
+  <div id="page-upgrade" class="page hidden">
+    <div style="position:absolute;top:24px;left:16px">
+      <button class="ghost-btn" id="up-back" style="font-size:11px;padding:4px 12px">← 返回</button>
+    </div>
+    <div class="title-deco anim-fade" style="margin-top:10px"></div>
+    <div class="title-sub anim-fade anim-fade-d1" style="margin-bottom:6px;font-size:12px;letter-spacing:6px">修 炼</div>
+    <div id="qi-display" style="color:#8a7a4a;font-size:13px;letter-spacing:3px;margin-bottom:16px">真气 · <span id="qi-amount">0</span></div>
+    <div id="upgrade-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;width:88%;max-width:320px"></div>
+  </div>
+
+  <!-- === PAGE: Wave Story Card === -->
+  <div id="page-wave-story" class="page hidden" style="z-index:45">
+    <div class="scroll-frame anim-ink">
+      <div class="story-text" id="wave-story-text" style="font-size:12px;line-height:2"></div>
+      <div style="margin-top:10px;text-align:center">
+        <div id="wave-story-continue" class="ghost-btn" style="display:inline-block;font-size:11px;padding:4px 16px">继 续</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- === PAGE: Victory === -->
+  <div id="page-victory" class="page win-screen hidden">
+    <div class="scroll-frame anim-ink">
+      <div class="title-deco"></div>
+      <div class="title-main" style="color:#d4a050;font-size:28px;letter-spacing:6px">关 破</div>
+      <div id="chapter-name-done" style="color:#b09080;font-size:13px;letter-spacing:6px;margin:8px 0 16px"></div>
+      <div id="victory-stats" style="color:#7a6a5a;font-size:12px;letter-spacing:2px;text-align:center;margin-bottom:12px"></div>
+      <div id="chapter-reward" style="color:#8a7a4a;font-size:13px;letter-spacing:2px;margin-bottom:16px">获得 <span id="qi-reward" style="color:#d4a050">0</span> 真气</div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <button class="seal-btn" id="victory-retry" style="font-size:12px;padding:8px 24px">再战一次</button>
+        <button class="ghost-btn" id="victory-menu" style="font-size:11px;padding:4px 16px">返回主界面</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- === PAGE: Death === -->
+  <div id="page-death" class="page death-screen hidden">
+    <div class="scroll-frame anim-ink">
+      <div class="title-deco"></div>
+      <div class="title-main" style="color:#904040;font-size:28px;letter-spacing:6px">败 北</div>
+      <div id="death-reason" style="color:#8a7a6a;font-size:13px;letter-spacing:3px;margin:12px 0 18px;text-align:center"></div>
+      <div id="death-stats" style="color:#7a6a5a;font-size:12px;letter-spacing:2px;text-align:center;margin-bottom:16px"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
+        <button class="seal-btn" id="death-retry" style="font-size:12px;padding:8px 24px">再试一次</button>
+        <button class="ghost-btn" id="death-menu" style="font-size:11px;padding:4px 16px">返回主界面</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-// ===== CANVAS =====
+// =============================================================
+// DATA
+// =============================================================
+const CHAPTERS = [
+  { id:0, name:'第一章 · 黑风山', short:'黑风山', palette:{bg:'#070505',far:'rgba(40,30,25,0.3)',mid:'rgba(30,22,18,0.4)',bar:'rgba(12,8,6,0.85)'},
+    waves:[
+      { name:'斥候', story:'黑风山脚下·暗渊的斥候在山道游荡\n云逸拉满长弓·箭已在弦', soldiers:40, elites:0 },
+      { name:'精锐', story:'越往上走·遇到的不再是寻常兵卒\n这些精锐已染上暗渊的戾气', soldiers:25, elites:6 },
+      { name:'暗渊魔将', story:'山顶之上·魔将黯渊正等待着你\n记住它的招式·剑·盾·弓', soldiers:18, elites:0, boss:true }
+    ], enemyChar:'兵', eliteChar:'将', bossChar:'黯', bossHP:14 },
+  { id:1, name:'第二章 · 寒冰谷', short:'寒冰谷', palette:{bg:'#04080a',far:'rgba(20,40,50,0.3)',mid:'rgba(15,30,40,0.4)',bar:'rgba(6,10,14,0.85)'},
+    waves:[
+      { name:'冰傀', story:'寒气扑面·谷中行走的已非活物\n冰封的傀儡·步履沉重却不知疲倦', soldiers:45, elites:0 },
+      { name:'霜卫', story:'深处的霜甲卫士·身披千年寒冰\n寻常箭矢难以穿透', soldiers:20, elites:8 },
+      { name:'冰渊之主', story:'谷底冰窟·一尊巨大的冰影缓缓起身\n记住它的节奏·冰·霜·雪', soldiers:15, elites:0, boss:true }
+    ], enemyChar:'傀', eliteChar:'卫', bossChar:'冰', bossHP:16 }
+];
+
+const UPGRADES = [
+  { id:'hp', icon:'❤', name:'气血', desc:'最大生命', maxLv:3, costs:[3,6,10] },
+  { id:'spd', icon:'⚡', name:'身法', desc:'移动速度', maxLv:3, costs:[3,6,10] },
+  { id:'atk', icon:'🗡', name:'劲力', desc:'箭矢伤害', maxLv:3, costs:[4,8,14] },
+  { id:'rate', icon:'🏹', name:'连射', desc:'射速提升', maxLv:3, costs:[4,8,14] },
+  { id:'arrow', icon:'✦', name:'箭术', desc:'额外箭矢', maxLv:2, costs:[10,20] }
+];
+// Saved data
+function loadData(){
+  try{const d=JSON.parse(localStorage.getItem('bm_data'));if(d)return d}catch(e){}
+  return {qi:0,unlocked:1,upgrades:{},completed:[]};
+}
+function saveData(d){localStorage.setItem('bm_data',JSON.stringify(d));}
+let save = loadData();
+
+// =============================================================
+// CANVAS SETUP
+// =============================================================
 const canvas = document.getElementById('main'), mc = canvas.getContext('2d');
 const wCanvas = document.getElementById('wheel-canvas'), wc = wCanvas.getContext('2d');
 let W, H, dpr;
+
 function resize() {
   const r = document.getElementById('game').getBoundingClientRect();
   dpr = window.devicePixelRatio || 1;
@@ -78,147 +248,145 @@ function resize() {
 }
 resize(); window.addEventListener('resize', resize);
 
-// ===== LAYOUT CONSTANTS =====
-const BTM_BAR = 0.12;
-const PLAYER_ZONE = 0.16;
+// =============================================================
+// LAYOUT
+// =============================================================
+const BTM_BAR = 0.12, PLAYER_ZONE = 0.16;
 function playerCY() { return H * (1 - BTM_BAR - PLAYER_ZONE * 0.4); }
 function hudTopY() { return H * (1 - BTM_BAR); }
 
-// ===== DOM =====
+// =============================================================
+// DOM refs
+// =============================================================
 const wheelOverlay = document.getElementById('wheel-overlay');
 const wheelHint = document.getElementById('wheel-hint');
 const wheelRating = document.getElementById('wheel-rating');
-const startOverlay = document.getElementById('start-overlay');
-const deathOverlay = document.getElementById('death-overlay');
 const stunOverlay = document.getElementById('stun-overlay');
 
-// ===== STATE =====
-let state = 'IDLE', hp = 5, maxHp = 5, score = 0, killCount = 0;
-let enemies = [], arrows = [], particles = [], shakeX = 0, shakeY = 0, shakeIntensity = 0;
-let wave = 0, spawnQ = [], spawnTimer = 0;
-let playerX, playerR = 22;
-let frame = 0, autoCD = 0;
-let boss = null, bossStunned = false, powerupTimer = 0;
-let fingerX = false, comboCount = 0, comboTimer = 0;
-let deathReason = '';
-let waveTextTimer = 0, waveTextStr = '';
-let playerStunTimer = 0, hitFreeze = 0, invincibleTimer = 0;
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));const el=document.getElementById(id);if(el)el.classList.remove('hidden');}
 
-function initPlayer() { playerX = W/2; }
+// =============================================================
+// GAME STATE
+// =============================================================
+let state='MENU', hp=5, maxHp=5, score=0, killCount=0, frame=0;
+let enemies=[], arrows=[], particles=[], shakeX=0, shakeY=0, shakeIntensity=0;
+let wave=0, spawnQ=[], spawnTimer=0;
+let playerX, playerR=22, autoCD=0;
+let boss=null, bossStunned=false, powerupTimer=0;
+let fingerX=false, comboCount=0, comboTimer=0;
+let waveTextTimer=0, waveTextStr='';
+let playerStunTimer=0, hitFreeze=0, invincibleTimer=0;
+let currentChapter=0, currentWave=0;
+let deathReason='';
 
-// ===== ENEMIES =====
-function makeSoldier() {
-  return { t:'s', x:W*0.05+Math.random()*W*0.9, y:5, hp:2, mh:2, spd:1.5+Math.random()*0.7, w:20, h:24, f:0, hit:false };
+function initPlayer(){playerX=W/2;hp=maxHp;}
+
+// =============================================================
+// ENEMIES
+// =============================================================
+function ch(){return CHAPTERS[currentChapter];}
+function makeSoldier(){
+  const c=ch();
+  return {t:'s', x:W*0.05+Math.random()*W*0.9, y:5, hp:2, mh:2, spd:1.5+Math.random()*0.7, w:20, h:24, f:0, hit:false, ch:c.enemyChar };
 }
-function makeElite() {
-  return { t:'e', x:W*0.1+Math.random()*W*0.8, y:5, hp:5, mh:5, spd:1.2+Math.random()*0.3, w:26, h:32, f:0, a:Math.random()*6, hit:false };
+function makeElite(){
+  const c=ch();
+  return {t:'e', x:W*0.1+Math.random()*W*0.8, y:5, hp:5, mh:5, spd:1.2+Math.random()*0.3, w:26, h:32, f:0, a:Math.random()*6, hit:false, ch:c.eliteChar };
 }
-function makeBoss() {
+function makeBoss(){
+  const c=ch();
   return {
-    t:'b', x:W/2, y:-60, hp:14, mh:14, w:50, h:56, f:0, stunned:false,
-    isWalking:true, walkSpeed:0.45, walkTarget:H*0.22, skillTimer:150, skillActive:false
+    t:'b', x:W/2, y:-60, hp:c.bossHP, mh:c.bossHP, w:50, h:56, f:0, stunned:false,
+    isWalking:true, walkSpeed:0.45, walkTarget:H*0.22, skillTimer:150, skillActive:false,
+    ch:c.bossChar
   };
 }
 
-// ===== SHAKE =====
-function screenShake(intensity) { shakeIntensity = intensity; }
-
-// ===== WAVES =====
+// =============================================================
+// WAVES
+// =============================================================
 function nextWave() {
-  wave++;
-  const names = ['第一波 · 斥候','第二波 · 精锐','第三波 · 暗渊魔将'];
-  waveTextStr = wave<=3?names[wave-1]:''; waveTextTimer=90;
-  if (wave===1) {
-    spawnQ=[]; for(let i=0;i<45;i++) spawnQ.push({d:i*6,t:'s'});
-  } else if (wave===2) {
-    spawnQ=[]; for(let i=0;i<30;i++) spawnQ.push({d:i*8,t:'s'});
-    for(let i=0;i<8;i++) spawnQ.push({d:160+i*25,t:'e'});
-  } else if (wave===3) {
-    spawnQ=[]; for(let i=0;i<20;i++) spawnQ.push({d:i*12,t:'s'});
-    setTimeout(()=>{
-      boss=makeBoss(); boss.walkTarget=H*0.22;
-    },600);
+  wave++; currentWave++;
+  const chData = ch();
+  const wd = chData.waves[currentWave-1];
+  if (!wd) return;
+  waveTextStr = currentWave+'/'+chData.waves.length+' · '+wd.name; waveTextTimer=75;
+  
+  if (wd.boss) {
+    spawnQ=[]; for(let i=0;i<wd.soldiers;i++) spawnQ.push({d:i*10,t:'s'});
+    setTimeout(()=>{boss=makeBoss();boss.walkTarget=H*0.22;},600);
+  } else {
+    spawnQ=[];
+    for(let i=0;i<wd.soldiers;i++) spawnQ.push({d:i*8,t:'s'});
+    for(let i=0;i<wd.elites;i++) spawnQ.push({d:140+i*25,t:'e'});
   }
-  spawnTimer=0;
-  state='PLAYING';
-  // Invincibility at wave start: 1.5s (90 frames)
-  invincibleTimer = 90;
-  hp = Math.min(maxHp, hp + 1);
+  spawnTimer=0; state='PLAYING';
+  invincibleTimer=90;
+  hp = Math.min(maxHp, hp+1);
 }
 
-// ===== AUTO SHOOT =====
+// =============================================================
+// AUTO SHOOT
+// =============================================================
 function autoShoot() {
   if (state!=='PLAYING'&&state!=='POWERUP') return;
   if (playerStunTimer>0) return;
   autoCD--;
   if (autoCD>0) return;
   const pow = powerupTimer>0;
-  autoCD = pow?6:8;
-  // Fast, straight, big arrow
-  arrows.push({x:playerX, y:playerCY()-10, vx:0, vy:-25, dmg:pow?2:1, size:pow?14:10, life:Math.ceil(playerCY()/25)+5, pow});
+  const up = save.upgrades;
+  const atkUp = (up.atk||0);
+  const rateUp = (up.rate||0);
+  const arrowUp = (up.arrow||0);
+  autoCD = pow?6:(8-rateUp);
+  if(autoCD<4) autoCD=4;
+  const count = arrowUp>0?2:1;
+  for(let i=0;i<count;i++){
+    const offset = count>1?(i-0.5)*30:0;
+    arrows.push({x:playerX+offset, y:playerCY()-10, vx:0, vy:-25, dmg:pow?2:(1+atkUp), size:pow?14:10, life:Math.ceil(playerCY()/25)+5, pow});
+  }
   screenShake(pow?3:1.5);
 }
 
-// ===== PARTICLES =====
-function burst(x,y,c,n,s) {
+// =============================================================
+// PARTICLES
+// =============================================================
+function burst(x,y,c,n,s){
   for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2, sp=s*(0.3+Math.random()*0.7);particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:12+Math.random()*10,c,maxL:22,sz:1+Math.random()*3});}
 }
+function screenShake(v){shakeIntensity=v;}
 
-// ===== JUICE: Screen Shake =====
-function applyShake() {
-  if (shakeIntensity > 0) {
-    shakeX = (Math.random()-0.5)*shakeIntensity * dpr;
-    shakeY = (Math.random()-0.5)*shakeIntensity * dpr;
-    shakeIntensity *= 0.82;
-    if (shakeIntensity < 0.5) shakeIntensity = 0;
-  } else { shakeX = 0; shakeY = 0; }
-}
-
-// ===== UPDATE =====
+// =============================================================
+// UPDATE
+// =============================================================
 function update() {
   frame++;
   applyShake();
   if (waveTextTimer>0) waveTextTimer--;
   if (hitFreeze>0) { hitFreeze--; return; }
-  // Player invincibility frames at wave start
   if (invincibleTimer>0) invincibleTimer--;
 
-  // Player stun timer
   if (playerStunTimer>0) {
     playerStunTimer--;
     if (playerStunTimer<=0) {
       stunOverlay.classList.remove('active');
-      if (boss) {
-        // Boss resumes walking after stun
-        boss.isWalking = true;
-        boss.walkTarget = Math.min((boss.walkTarget||H*0.22) + H*0.06, H*0.55);
-        boss.skillTimer = 180;
-      }
+      if(boss){boss.isWalking=true;boss.walkTarget=Math.min((boss.walkTarget||H*0.22)+H*0.06,H*0.55);}
     }
   }
 
   if (state==='PLAYING'||state==='POWERUP') autoShoot();
-  if (powerupTimer>0) {
-    powerupTimer--;
-    if (powerupTimer<=0) { powerupTimer=0; state='PLAYING'; }
-  }
+  if (powerupTimer>0) {powerupTimer--;if(powerupTimer<=0){powerupTimer=0;state='PLAYING';}}
   if (comboTimer>0) comboTimer--;
 
-  // Boss AI — walking boss with periodic skill wheel
+  // Boss AI
   if (boss && state==='PLAYING' && !bossStunned && playerStunTimer<=0) {
     if (boss.isWalking) {
-      // Walk toward target
-      if (boss.y < boss.walkTarget) { boss.y += boss.walkSpeed; }
+      if (boss.y < boss.walkTarget) boss.y += boss.walkSpeed;
       else { boss.isWalking = false; boss.skillTimer = 180; }
-      // Sway while walking
       boss.x += Math.sin(frame * 0.025) * 0.6;
     } else {
-      // Stationary, charging skill
       boss.skillTimer--;
-      if (boss.skillTimer <= 0) {
-        boss.skillActive = true;
-        triggerWheel();
-      }
+      if (boss.skillTimer <= 0) { boss.skillActive = true; triggerWheel(); }
     }
   }
 
@@ -237,7 +405,6 @@ function update() {
     if(e.t==='s') e.y+=e.spd;
     else{e.a+=0.04;e.x+=Math.sin(e.a)*1.5;e.y+=e.spd;}
     if(e.y>H+20){enemies.splice(i,1);continue;}
-    // Hit player
     const dx=e.x-playerX, dy=e.y-playerCY();
     if(dx*dx+dy*dy<(playerR+e.w*0.5)*(playerR+e.w*0.5)){
       if(!e.hit&&invincibleTimer<=0){e.hit=true;takeDamage(1);}
@@ -245,7 +412,7 @@ function update() {
     }
   }
 
-  // Arrows
+  // Arrows vs enemies
   for(let i=arrows.length-1;i>=0;i--){
     const a=arrows[i]; a.x+=a.vx; a.y+=a.vy; a.life--;
     if(a.life<=0||a.y<-50||a.y>H+50){arrows.splice(i,1);continue;}
@@ -253,29 +420,23 @@ function update() {
     for(let e of enemies){
       if(Math.abs(a.x-e.x)<e.w&&Math.abs(a.y-e.y)<e.h){
         e.hp-=a.dmg; e.f=6;
-        // BIG impact particles
-        const numP = a.pow?14:8;
-        burst(a.x,a.y,'#d09060',numP, a.pow?4:3);
+        burst(a.x,a.y,'#d09060',a.pow?14:8,a.pow?4:3);
         screenShake(a.pow?6:3);
-        // Hit-freeze for impact feel
-        hitFreeze = 1;
+        hitFreeze=1;
         if(e.hp<=0){
           score+=e.t==='e'?30:10;killCount++;comboCount++;comboTimer=30;
-          burst(e.x,e.y,'#d08040',18,5);
-          screenShake(8);
+          burst(e.x,e.y,'#d08040',18,5);screenShake(8);
           enemies.splice(i,1);
-          hit=true; break;
         }
         hit=true;break;
       }
     }
     if(!hit&&boss&&state==='PLAYING'){
-      const dx=a.x-boss.x, dy=a.y-boss.y;
+      const dx=a.x-boss.x,dy=a.y-boss.y;
       if(Math.abs(dx)<boss.w&&Math.abs(dy)<boss.h){
         boss.hp-=Math.max(1,a.dmg-1);boss.f=6;
         burst(a.x,a.y,'#c08050',6,3);
-        if(boss.hp<=0){boss.hp=0;win();}
-        updateBossHP();
+        if(boss.hp<=0){boss.hp=0;onBossDefeated();}
         hit=true;
       }
     }
@@ -285,77 +446,99 @@ function update() {
   // Particles
   for(let i=particles.length-1;i>=0;i--){
     const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy*=0.92;p.life--;
-    if(p.life<=0) particles.splice(i,1);
+    if(p.life<=0)particles.splice(i,1);
   }
 
   // Wave transition
   if(state==='PLAYING'){
     if(enemies.length===0&&spawnQ.length===0&&!boss){
-      if(wave===1){state='WAVETRANS';setTimeout(()=>nextWave(),1200);}
-      else if(wave===2){state='WAVETRANS';setTimeout(()=>nextWave(),1200);}
+      const wd = ch().waves[currentWave-1];
+      if(wd && !wd.boss && currentWave < ch().waves.length){
+        state='WAVETRANS';
+        setTimeout(()=>{
+          showWaveStory(currentWave, ()=>{
+            state='IDLE';nextWave();
+          });
+        },300);
+      }
     }
-  }
-  // Wave 3: all done if boss dead and no enemies
-  if(state==='PLAYING' && wave===3 && boss && boss.hp<=0 && enemies.length===0 && spawnQ.length===0) {
-    win();
   }
 }
 
-// ===== PLAYER / DAMAGE =====
-function takeDamage(d) {
-  hp-=d; if(hp<=0){hp=0;lose();return;}
+// =============================================================
+// BOSS DEFEATED
+// =============================================================
+function onBossDefeated(){
+  state='WIN'; boss=null;
+  // Reward
+  const qiGain = 5 + currentChapter * 3;
+  save.qi += qiGain;
+  if(!save.completed.includes(currentChapter)) save.completed.push(currentChapter);
+  if(currentChapter+1 < CHAPTERS.length) save.unlocked = Math.max(save.unlocked, currentChapter+2);
+  saveData(save);
+  
+  document.getElementById('chapter-name-done').textContent = ch().short;
+  document.getElementById('victory-stats').innerHTML =
+    `<div>得分 · ${score}</div><div>击杀 · ${killCount}</div><div>剩余 · ❤×${hp}</div>`;
+  document.getElementById('qi-reward').textContent = qiGain;
+  showPage('page-victory');
+}
+
+// =============================================================
+// SHOW WAVE STORY
+// =============================================================
+function showWaveStory(waveNum, callback){
+  const wd = ch().waves[waveNum-1];
+  if(!wd||!wd.story){callback();return;}
+  document.getElementById('wave-story-text').textContent = wd.story;
+  showPage('page-wave-story');
+  document.getElementById('wave-story-continue').onclick = ()=>{
+    showPage('page-wave-story'); // hide
+    callback();
+  };
+}
+
+// =============================================================
+// PLAYER / DAMAGE
+// =============================================================
+function takeDamage(d){
+  hp-=d; if(hp<=0){hp=0;showDeath();return;}
   screenShake(16);
   burst(playerX,playerCY(),'#ff4040',16,5);
   comboCount=0;
 }
 
-function updateBossHP(){/*boss HP drawn on canvas*/}
-
-function lose() {
+function showDeath(){
   state='LOSE';
-  if(boss&&boss.hp>0) deathReason='被 BOSS 击败 · 内力耗尽';
-  else if(hp<=0) deathReason='伤势过重 · 体力不支';
-  else deathReason='未能突破 · 下次再来';
+  if(boss&&boss.hp>0) deathReason='被 BOSS 击败·内力耗尽';
+  else if(hp<=0) deathReason='伤势过重·体力不支';
+  else deathReason='未能突破·下次再来';
   document.getElementById('death-reason').textContent=deathReason;
   document.getElementById('death-stats').innerHTML=
-    `<div>得分 · <span style="color:#d4a050">${score}</span></div>`+
-    `<div>击杀 · <span style="color:#70a070">${killCount}</span></div>`+
-    `<div>到达 · <span style="color:#8090b0">第${wave}波</span></div>`;
-  deathOverlay.classList.remove('hidden');
-  screenShake(18);
+    `<div>得分 · ${score}</div><div>击杀 · ${killCount}</div><div>到达 · 第${currentWave}波</div>`;
+  showPage('page-death');
 }
 
-function win() {
-  state='WIN';
-  document.getElementById('death-reason').textContent='暗渊已破 · 大获全胜';
-  document.getElementById('death-reason').style.color='#d4a050';
-  document.getElementById('death-stats').innerHTML=
-    `<div>得分 · <span style="color:#d4a050">${score}</span></div>`+
-    `<div>击杀 · <span style="color:#70a070">${killCount}</span></div>`+
-    `<div>剩余 · <span style="color:#70a070">${'❤'.repeat(hp)}</span></div>`;
-  deathOverlay.classList.remove('hidden');
-  screenShake(25);
-}
-
-// ===== BOSS WHEEL =====
+// =============================================================
+// BOSS WHEEL (unchanged core logic)
+// =============================================================
 let wState='IDLE', wSeq=[], wPlayerSeq=[], wShowStep=0, wShowTimer=0;
 let wExpand=0, wExpandSpd=0, wDelay=0, wFlash=-1, wTap=-1;
 const WG=['#dd7060','#ddb860','#80b080'], WA=[-90,-90+120,-90+240], WB=['#5a2a2a','#7a6a3a','#3a5a45'], WD=['#1a0a0a','#1a1508','#081a10'], WI=['剑','盾','弓'];
 
-function triggerWheel() {
+function triggerWheel(){
   state='WHEEL'; wheelOverlay.classList.add('active'); wheelHint.style.display='block';
   const len=2+Math.min(Math.floor((boss?boss.mh-boss.hp:0)/3),4);
   wSeq=[];for(let i=0;i<len;i++)wSeq.push(Math.floor(Math.random()*3));
   wPlayerSeq=[];wShowStep=0;wShowTimer=0;wExpand=0;wDelay=0;wFlash=-1;wTap=-1;
-  wheelRating.classList.remove('show'); wState='SHOW';
+  wheelRating.classList.remove('show');wState='SHOW';
   const r=document.getElementById('wheel-wrap').getBoundingClientRect();
-  wCanvas.width=r.width*dpr; wCanvas.height=r.height*dpr;
+  wCanvas.width=r.width*dpr;wCanvas.height=r.height*dpr;
 }
-
-function drawWheel() {
+function drawWheel(){
   const r=document.getElementById('wheel-wrap').getBoundingClientRect();
   const cx=wCanvas.width/2,cy=wCanvas.height/2,wr=Math.min(wCanvas.width,wCanvas.height)*0.36,wg=wr*0.14;
-  wc.clearRect(0,0,wCanvas.width,wCanvas.height); wc.fillStyle='rgba(0,0,0,0.4)'; wc.fillRect(0,0,wCanvas.width,wCanvas.height);
+  wc.clearRect(0,0,wCanvas.width,wCanvas.height);wc.fillStyle='rgba(0,0,0,0.4)';wc.fillRect(0,0,wCanvas.width,wCanvas.height);
   for(let i=0;i<3;i++){
     const st=WA[i]*Math.PI/180,en=st+120*Math.PI/180;
     wc.beginPath();wc.moveTo(cx,cy);wc.arc(cx,cy,wr,st,en);wc.closePath();
@@ -384,13 +567,11 @@ function drawWheel() {
     for(let i=0;i<wSeq.length;i++){const dx=sx+i*24;wc.beginPath();wc.arc(dx,dy,6,0,Math.PI*2);if(i<wPlayerSeq.length){wc.fillStyle=WG[wSeq[i]];wc.shadowColor=WG[wSeq[i]];wc.shadowBlur=8;}else{wc.fillStyle='rgba(255,255,255,0.08)';wc.shadowBlur=0;}wc.fill();wc.shadowBlur=0;}
   }
 }
-
-function updateWheel() {
+function updateWheel(){
   if(wState==='SHOW'){wShowTimer++;if(wShowTimer%45===0){wFlash=wSeq[wShowStep];wShowStep++;if(wShowStep>=wSeq.length){setTimeout(()=>{wFlash=-1;wState='REP';wheelHint.textContent='按顺序点击';},500);wState='REP_WAIT';}}}
   if(wState==='DELAY'){wDelay--;if(wDelay<=0){wState='RING';wExpand=0.02;}}
   if(wState==='RING'){wExpand+=wExpandSpd;if(wExpand>=1){wExpand=1;endWheel('失误');}}
 }
-
 function endWheel(r){
   const ok=r==='PERFECT';
   wheelRating.querySelector('span').textContent=ok?'完美':r==='优'?'优':r;
@@ -399,25 +580,18 @@ function endWheel(r){
   setTimeout(()=>{
     wheelRating.classList.remove('show');wheelOverlay.classList.remove('active');
     if(ok||r==='优'){
-      // Success: boss takes damage + stunned
-      if(boss){bossStunned=true;boss.f=20;const bd=ok?4:2;boss.hp-=bd;if(boss.hp<=0){boss.hp=0;win();return;}updateBossHP();}
+      if(boss){bossStunned=true;boss.f=20;const bd=ok?4:2;boss.hp-=bd;if(boss.hp<=0){boss.hp=0;onBossDefeated();return;}}
       state='POWERUP';powerupTimer=90;
       setTimeout(()=>{
         bossStunned=false;
-        // Boss resumes walking, moves further down
         if(boss){boss.isWalking=true;boss.walkTarget=Math.min((boss.walkTarget||H*0.22)+H*0.08,H*0.55);}
       },150);
     } else {
-      // Failure: player paralyzed 3 seconds
-      state='PLAYING';
-      playerStunTimer=180;
-      stunOverlay.classList.add('active');
-      // Boss backs off slightly
+      state='PLAYING';playerStunTimer=180;stunOverlay.classList.add('active');
       if(boss){boss.isWalking=false;boss.skillTimer=240;}
     }
   },500);
 }
-
 wCanvas.addEventListener('pointerdown',(e)=>{
   e.preventDefault();
   if(state!=='WHEEL'||(wState!=='REP'&&wState!=='RING'))return;
@@ -438,96 +612,59 @@ wCanvas.addEventListener('pointerdown',(e)=>{
   }
 });
 
-// ===== TOUCH =====
+// =============================================================
+// TOUCH
+// =============================================================
 canvas.addEventListener('pointerdown',(e)=>{e.preventDefault();if((state==='PLAYING'||state==='POWERUP')&&playerStunTimer<=0){fingerX=e.clientX;updatePlayer(e.clientX);}});
 canvas.addEventListener('pointermove',(e)=>{e.preventDefault();if(fingerX!==false&&(state==='PLAYING'||state==='POWERUP')&&playerStunTimer<=0)updatePlayer(e.clientX);});
 canvas.addEventListener('pointerup',()=>{fingerX=false;});
 canvas.addEventListener('pointerleave',()=>{fingerX=false;});
 function updatePlayer(cx){const r=canvas.getBoundingClientRect();playerX=((cx-r.left)/r.width)*W;playerX=Math.max(playerR+5,Math.min(W-playerR-5,playerX));}
 
-// ===== DRAWING =====
+// =============================================================
+// DRAW
+// =============================================================
+function applyShake(){
+  if(shakeIntensity>0){shakeX=(Math.random()-0.5)*shakeIntensity*dpr;shakeY=(Math.random()-0.5)*shakeIntensity*dpr;shakeIntensity*=0.82;if(shakeIntensity<0.5)shakeIntensity=0;}
+  else{shakeX=0;shakeY=0;}
+}
+
 function draw() {
+  if (state==='MENU'||state==='STORY'||state==='CHAPTER'||state==='UPGRADE'||state==='LOSE'||state==='WIN') return;
   mc.save();
-  mc.translate(shakeX, shakeY);
-
-  // Background
-  mc.fillStyle='#070505';mc.fillRect(0,0,W,H);
-  
-  // Far mountains
-  mc.fillStyle='rgba(40,30,25,0.3)';
+  mc.translate(shakeX,shakeY);
+  const pal = ch().palette;
+  mc.fillStyle=pal.bg;mc.fillRect(0,0,W,H);
+  mc.fillStyle=pal.far;
   mc.beginPath();mc.moveTo(0,H*0.3);mc.quadraticCurveTo(W*0.2,H*0.15,W*0.4,H*0.25);mc.quadraticCurveTo(W*0.6,H*0.35,W*0.8,H*0.2);mc.quadraticCurveTo(W,H*0.15,W,H*0.3);mc.lineTo(W,H*0.5);mc.lineTo(0,H*0.5);mc.closePath();mc.fill();
-  // Mid mountains
-  mc.fillStyle='rgba(30,22,18,0.4)';
+  mc.fillStyle=pal.mid;
   mc.beginPath();mc.moveTo(0,H*0.42);mc.quadraticCurveTo(W*0.3,H*0.3,W*0.5,H*0.38);mc.quadraticCurveTo(W*0.7,H*0.45,W,H*0.35);mc.lineTo(W,H*0.55);mc.lineTo(0,H*0.55);mc.closePath();mc.fill();
-
-  // HUD Bottom Bar
-  mc.fillStyle='rgba(12,8,6,0.85)';
-  mc.fillRect(0,hudTopY(),W,BTM_BAR*H);
-  mc.strokeStyle='rgba(160,120,100,0.2)';mc.lineWidth=1;
-  mc.beginPath();mc.moveTo(0,hudTopY());mc.lineTo(W,hudTopY());mc.stroke();
-  
-  // HP
+  // HUD
+  mc.fillStyle=pal.bar;mc.fillRect(0,hudTopY(),W,BTM_BAR*H);
+  mc.strokeStyle='rgba(160,120,100,0.2)';mc.lineWidth=1;mc.beginPath();mc.moveTo(0,hudTopY());mc.lineTo(W,hudTopY());mc.stroke();
   let hStr='';for(let i=0;i<maxHp;i++)hStr+=i<hp?'❤':'🖤';
-  mc.fillStyle='#b09080';
-  mc.font=Math.round(dpr*14)+'px sans-serif';
-  mc.textAlign='left';mc.textBaseline='middle';
-  mc.fillText(`弓 ${hStr}`, 16*dpr, hudTopY()+BTM_BAR*H*0.4);
-
-  // Score
-  mc.textAlign='right';
-  mc.fillText(`得分 ${score}击杀 ${killCount}`, W-16*dpr, hudTopY()+BTM_BAR*H*0.4);
-
-  // Combo
-  if(comboTimer>0&&comboCount>=3){
-    const s=1+Math.sin(frame*0.3)*0.1;
-    mc.save();mc.translate(W/2,hudTopY()-20*dpr);mc.scale(s,s);
-    mc.fillStyle='#d4a050';
-    mc.font=`bold ${Math.round(dpr*16)}px sans-serif`;
-    mc.textAlign='center';mc.textBaseline='middle';
-    mc.fillText(`连杀 ×${comboCount}`,0,0);
-    mc.restore();
-  }
+  mc.fillStyle='#b09080';mc.font=Math.round(dpr*13)+'px sans-serif';mc.textAlign='left';mc.textBaseline='middle';
+  mc.fillText(hStr, 14*dpr, hudTopY()+BTM_BAR*H*0.4);
+  mc.textAlign='right';mc.fillText(`得分 ${score}`, W-14*dpr, hudTopY()+BTM_BAR*H*0.4);
+  if(comboTimer>0&&comboCount>=3){mc.save();mc.translate(W/2,hudTopY()-20*dpr);mc.scale(1+Math.sin(frame*0.3)*0.1,1+Math.sin(frame*0.3)*0.1);mc.fillStyle='#d4a050';mc.font='bold '+Math.round(dpr*16)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';mc.fillText(`连杀 ×${comboCount}`,0,0);mc.restore();}
 
   // Wave text
-  if(waveTextTimer>0){
-    const alpha=waveTextTimer>60?1:waveTextTimer/60;
-    mc.globalAlpha=alpha;
-    mc.fillStyle='#6a5a4a';
-    mc.font=Math.round(dpr*14)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
-    mc.fillText(waveTextStr,W/2,H*0.35);
-    mc.globalAlpha=1;
-  }
+  if(waveTextTimer>0){const a=waveTextTimer>60?1:waveTextTimer/60;mc.globalAlpha=a;mc.fillStyle='#6a5a4a';mc.font=Math.round(dpr*13)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';mc.fillText(waveTextStr,W/2,H*0.35);mc.globalAlpha=1;}
 
-  // Boss stun warning label
-  if (boss && !boss.isWalking && !boss.stunned && boss.skillTimer>0 && boss.skillTimer<120 && state==='PLAYING') {
-    mc.fillStyle='#b09850'; mc.font='bold '+Math.round(dpr*12)+'px sans-serif';
-    mc.textAlign='center'; mc.textBaseline='middle';
-    const pulse = Math.sin(frame*0.15)*0.3+0.7;
-    mc.globalAlpha=pulse;
-    mc.fillText('⚠ 蓄力 · 准备破招', boss.x, boss.y+48*dpr);
-    mc.globalAlpha=1;
+  // Boss skill warning
+  if(boss&&!boss.isWalking&&!boss.stunned&&boss.skillTimer>0&&boss.skillTimer<120&&state==='PLAYING'){
+    mc.fillStyle='#b09850';mc.font='bold '+Math.round(dpr*11)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
+    const p=Math.sin(frame*0.15)*0.3+0.7;mc.globalAlpha=p;mc.fillText('⚠ 蓄力·准备破招',boss.x,boss.y+48*dpr);mc.globalAlpha=1;
   }
 
   // Boss
   if(boss){
-    const fl=boss.f>0,stun=bossStunned;
-    // Boss glow aura
-    mc.beginPath();mc.arc(boss.x,boss.y,38,0,Math.PI*2);
-    const aura = stun?0.15:(boss.isWalking?0.04:0.08+Math.sin(frame*0.08)*0.04);
-    mc.fillStyle=`rgba(80,40,40,${aura})`;mc.fill();
-    
-    if(stun){
-      mc.beginPath();mc.arc(boss.x,boss.y,35,0,Math.PI*2);
-      const pulse=0.08+Math.sin(frame*0.1)*0.04;
-      mc.fillStyle=`rgba(212,160,80,${pulse})`;mc.fill();
-    }
-    mc.fillStyle=fl?'#fff':stun?'#c0a080':'#604040';
-    mc.font='bold '+Math.round(dpr*30)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
-    mc.fillText('黯',boss.x,boss.y);
-    mc.fillStyle='rgba(100,70,50,0.4)';mc.font=Math.round(dpr*10)+'px sans-serif';
-    mc.fillText('· 黯 渊 ·',boss.x,boss.y-36*dpr);
-    if(stun){mc.fillStyle='#d4a050';mc.font='bold '+Math.round(dpr*12)+'px sans-serif';mc.fillText('破绽！',boss.x,boss.y+36*dpr);}
-    // Boss HP bar
+    mc.beginPath();mc.arc(boss.x,boss.y,38,0,Math.PI*2);const a=bossStunned?0.15:(boss.isWalking?0.04:0.08+Math.sin(frame*0.08)*0.04);mc.fillStyle=`rgba(80,40,40,${a})`;mc.fill();
+    if(bossStunned){mc.beginPath();mc.arc(boss.x,boss.y,35,0,Math.PI*2);mc.fillStyle=`rgba(212,160,80,${0.08+Math.sin(frame*0.1)*0.04})`;mc.fill();}
+    mc.fillStyle=boss.f>0?'#fff':bossStunned?'#c0a080':'#604040';
+    mc.font='bold '+Math.round(dpr*28)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';mc.fillText(boss.ch,boss.x,boss.y);
+    mc.fillStyle='rgba(100,70,50,0.4)';mc.font=Math.round(dpr*10)+'px sans-serif';mc.fillText('· '+ch().short+' ·',boss.x,boss.y-36*dpr);
+    if(bossStunned){mc.fillStyle='#d4a050';mc.font='bold '+Math.round(dpr*12)+'px sans-serif';mc.fillText('破绽！',boss.x,boss.y+36*dpr);}
     const bw=W*0.5,bh=6*dpr,bx=W/2-bw/2,by=boss.y+30*dpr;
     mc.fillStyle='rgba(60,30,30,0.5)';mc.fillRect(bx,by,bw,bh);
     if(boss.hp>0){mc.fillStyle='#b05040';mc.fillRect(bx,by,bw*(boss.hp/boss.mh),bh);}
@@ -535,101 +672,49 @@ function draw() {
 
   // Enemies
   for(let e of enemies){
-    const fl=e.f>0;
-    if(e.t==='s'){
-      mc.fillStyle=fl?'#fff':'#5a4040';
-      mc.font=Math.round(dpr*18)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
-      mc.fillText('兵',e.x,e.y);
-      if(fl>3){mc.beginPath();mc.arc(e.x,e.y,15,0,Math.PI*2);mc.fillStyle='rgba(255,255,255,0.08)';mc.fill();}
-    }else{
-      mc.fillStyle=fl?'#fff':'#8a6040';
-      mc.font=Math.round(dpr*22)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
-      mc.fillText('将',e.x,e.y);
-    }
+    mc.fillStyle=e.f>0?'#fff':'#5a4040';mc.font=Math.round(dpr*18)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';mc.fillText(e.ch||(e.t==='s'?'兵':'将'),e.x,e.y);
+    if(e.f>3){mc.beginPath();mc.arc(e.x,e.y,15,0,Math.PI*2);mc.fillStyle='rgba(255,255,255,0.08)';mc.fill();}
   }
 
-  // Arrows — big arrow shapes, fast
+  // Arrows
   for(let a of arrows){
-    const headSize = a.size * 2.5;
-    // Shaft glow
-    mc.strokeStyle=a.pow?'#d4a050':'#b09080';
-    mc.lineWidth=a.size;
-    mc.shadowColor=a.pow?'#d4a050':'rgba(176,144,128,0.3)';
-    mc.shadowBlur=a.pow?20:8;
+    const hs=a.size*2.5;
+    mc.strokeStyle=a.pow?'#d4a050':'#b09080';mc.lineWidth=a.size;mc.shadowColor=a.pow?'#d4a050':'rgba(176,144,128,0.3)';mc.shadowBlur=a.pow?20:8;
     mc.beginPath();mc.moveTo(a.x,a.y);mc.lineTo(a.x,a.y+50);mc.stroke();
-    // Arrowhead
-    mc.beginPath();
-    mc.moveTo(a.x,a.y);
-    mc.lineTo(a.x-headSize*0.5,a.y-headSize);
-    mc.lineTo(a.x+headSize*0.5,a.y-headSize);
-    mc.closePath();
-    mc.fillStyle=a.pow?'#d4a050':'#b09080';
-    mc.fill();
-    // Motion trail
-    mc.shadowBlur=0;
-    mc.globalAlpha=0.15;
-    mc.beginPath();mc.moveTo(a.x,a.y+8);mc.lineTo(a.x,a.y+38);
-    mc.strokeStyle=a.pow?'#d4a050':'#b09080';
-    mc.lineWidth=a.size*0.5;
-    mc.stroke();
-    mc.globalAlpha=1;
+    mc.beginPath();mc.moveTo(a.x,a.y);mc.lineTo(a.x-hs*0.5,a.y-hs);mc.lineTo(a.x+hs*0.5,a.y-hs);mc.closePath();
+    mc.fillStyle=a.pow?'#d4a050':'#b09080';mc.fill();mc.shadowBlur=0;
+    mc.globalAlpha=0.15;mc.beginPath();mc.moveTo(a.x,a.y+8);mc.lineTo(a.x,a.y+38);mc.strokeStyle=a.pow?'#d4a050':'#b09080';mc.lineWidth=a.size*0.5;mc.stroke();mc.globalAlpha=1;
   }
 
   // Particles
-  for(let p of particles){
-    mc.globalAlpha=p.life/p.maxL;
-    mc.beginPath();mc.arc(p.x,p.y,p.sz*(p.life/p.maxL),0,Math.PI*2);
-    mc.fillStyle=p.c;mc.fill();
-  }
+  for(let p of particles){mc.globalAlpha=p.life/p.maxL;mc.beginPath();mc.arc(p.x,p.y,p.sz*(p.life/p.maxL),0,Math.PI*2);mc.fillStyle=p.c;mc.fill();}
   mc.globalAlpha=1;
 
   // Player
-  const px=playerX, py=playerCY();
-  // Player stun visual
-  const isStunned = playerStunTimer>0;
-  
-  // Player glow
-  const glowR=powerupTimer>0?playerR*2.8:(isStunned?playerR*1.2:playerR*1.8);
+  const px=playerX,py=playerCY(),isStunned=playerStunTimer>0;
+  const spdUp = (save.upgrades.spd||0)*0.08;
+  const effectiveR = playerR + spdUp*playerR;
+  const glowR=(powerupTimer>0?effectiveR*2.8:(isStunned?effectiveR*1.2:effectiveR*1.8));
   const grad=mc.createRadialGradient(px,py,0,px,py,glowR);
-  if(isStunned){grad.addColorStop(0,'rgba(200,40,40,0.12)');grad.addColorStop(1,'rgba(200,40,40,0)');}
-  else if(powerupTimer>0){grad.addColorStop(0,'rgba(212,160,80,0.15)');grad.addColorStop(1,'rgba(212,160,80,0)');}
-  else{grad.addColorStop(0,'rgba(160,120,100,0.08)');grad.addColorStop(1,'rgba(160,120,100,0)');}
+  if(isStunned)grad.addColorStop(0,'rgba(200,40,40,0.12)');
+  else if(powerupTimer>0)grad.addColorStop(0,'rgba(212,160,80,0.15)');
+  else grad.addColorStop(0,'rgba(160,120,100,0.08)');
+  grad.addColorStop(1,'rgba(160,120,100,0)');
   mc.fillStyle=grad;mc.beginPath();mc.arc(px,py,glowR,0,Math.PI*2);mc.fill();
 
-  // Invincibility flash
-  if(invincibleTimer>0 && Math.floor(invincibleTimer/6)%2===0){
-    mc.beginPath();mc.arc(px,py,playerR+6,0,Math.PI*2);
-    mc.strokeStyle='rgba(212,160,80,0.35)';mc.lineWidth=3;mc.stroke();
-  }
-
-  // Hitbox circle
-  mc.beginPath();mc.arc(px,py,playerR,0,Math.PI*2);
-  mc.strokeStyle=isStunned?'rgba(200,40,40,0.3)':powerupTimer>0?'rgba(212,160,80,0.3)':'rgba(160,120,100,0.15)';
-  mc.lineWidth=2;mc.setLineDash([4,6]);mc.stroke();mc.setLineDash([]);
-
-  // Player character
+  if(invincibleTimer>0 && Math.floor(invincibleTimer/6)%2===0){mc.beginPath();mc.arc(px,py,effectiveR+6,0,Math.PI*2);mc.strokeStyle='rgba(212,160,80,0.35)';mc.lineWidth=3;mc.stroke();}
+  mc.beginPath();mc.arc(px,py,effectiveR,0,Math.PI*2);mc.strokeStyle=isStunned?'rgba(200,40,40,0.3)':powerupTimer>0?'rgba(212,160,80,0.3)':'rgba(160,120,100,0.15)';mc.lineWidth=2;mc.setLineDash([4,6]);mc.stroke();mc.setLineDash([]);
   mc.fillStyle=isStunned?'#903030':powerupTimer>0?'#d4a050':'#b09080';
-  mc.font='bold '+Math.round(dpr*28)+'px sans-serif';
-  mc.textAlign='center';mc.textBaseline='middle';
-  mc.fillText('弓',px,py-8*dpr);
-  // Bow
-  mc.strokeStyle=isStunned?'#603030':powerupTimer>0?'#d4a050':'#8a7a6a';mc.lineWidth=2;
-  mc.beginPath();mc.arc(px+18*dpr,py-10*dpr,20*dpr,-Math.PI*0.4,Math.PI*0.4);
-  mc.stroke();
-
-  // Powerup indicator
-  if(powerupTimer>0){
-    mc.fillStyle='#d4a050';
-    mc.font='bold '+Math.round(dpr*10)+'px sans-serif';
-    mc.textAlign='center';mc.textBaseline='top';
-    mc.fillText('✦ 破 锋 ✦',px,py+playerR+10*dpr);
-  }
-
+  mc.font='bold '+Math.round(dpr*26)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
+  mc.fillText('弓',px,py-6*dpr);
+  if(powerupTimer>0){mc.fillStyle='#d4a050';mc.font='bold '+Math.round(dpr*10)+'px sans-serif';mc.textAlign='center';mc.textBaseline='top';mc.fillText('✦ 破 锋 ✦',px,py+effectiveR+10*dpr);}
   mc.restore();
 }
 
-// ===== LOOP =====
-function loop() {
+// =============================================================
+// LOOP
+// =============================================================
+function loop(){
   if(state==='PLAYING'||state==='POWERUP') update();
   if(state==='WHEEL'){update();updateWheel();}
   if(state==='WAVETRANS') update();
@@ -639,23 +724,144 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// ===== RESTART =====
-function restart(){
-  state='IDLE';hp=5;score=0;killCount=0;comboCount=0;comboTimer=0;
-  enemies=[];arrows=[];particles=[];boss=null;powerupTimer=0;
-  bossStunned=false;spawnQ=[];spawnTimer=0;wave=0;shakeIntensity=0;
-  fingerX=false;autoCD=0;deathReason='';waveTextTimer=0;
-  playerStunTimer=0;hitFreeze=0;invincibleTimer=0;
-  wheelOverlay.classList.remove('active');wheelHint.style.display='none';
+// =============================================================
+// GAME START / RESTART
+// =============================================================
+function startGame(chapterIdx){
+  currentChapter = chapterIdx;
+  currentWave = 0;
+  wave = 0;
+  state='IDLE';
+  hp = maxHp; score=0; killCount=0; comboCount=0; comboTimer=0;
+  enemies=[]; arrows=[]; particles=[]; boss=null; powerupTimer=0;
+  bossStunned=false; spawnQ=[]; spawnTimer=0; shakeIntensity=0;
+  fingerX=false; autoCD=0; playerStunTimer=0; hitFreeze=0; invincibleTimer=0;
+  wheelOverlay.classList.remove('active'); wheelHint.style.display='none';
   stunOverlay.classList.remove('active');
-  deathOverlay.classList.add('hidden');startOverlay.classList.add('hidden');
-  initPlayer();state='PLAYING';nextWave();
+  initPlayer();
+  showPage('page-chapter');
+  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden')); // hide all pages
+  state='PLAYING';
+  nextWave();
+  loop();
 }
-document.getElementById('start-btn').addEventListener('click',restart);
-document.getElementById('retry-btn').addEventListener('click',restart);
 
+function restartGame(){
+  if(state==='LOSE'||state==='WIN'){
+    save = loadData();
+    startGame(currentChapter);
+  }
+}
+
+// =============================================================
+// UI NAVIGATION
+// =============================================================
+// Story → Menu
+document.getElementById('story-continue').addEventListener('click',()=>{
+  showPage('page-menu');
+  state='MENU';
+});
+
+// Menu → Chapter
+document.getElementById('menu-start').addEventListener('click',()=>{
+  renderChapterList();
+  showPage('page-chapter');
+});
+
+// Menu → Upgrade
+document.getElementById('menu-upgrade').addEventListener('click',()=>{
+  renderUpgrades();
+  showPage('page-upgrade');
+});
+
+// Chapter → back
+document.getElementById('ch-back').addEventListener('click',()=>showPage('page-menu'));
+
+// Upgrade → back
+document.getElementById('up-back').addEventListener('click',()=>{
+  save = loadData();
+  showPage('page-menu');
+});
+
+// Chapter nodes
+function renderChapterList(){
+  const list = document.getElementById('chapter-list');
+  list.innerHTML = '';
+  CHAPTERS.forEach((ch,idx)=>{
+    const unlocked = idx < save.unlocked;
+    const div = document.createElement('div');
+    div.className = 'chapter-node'+(unlocked?' active':' locked');
+    div.innerHTML = unlocked
+      ? `<div class="ch-name">${ch.name}</div>
+         <div class="ch-sub" style="color:#6a5a4a;font-size:10px;letter-spacing:2px">${ch.short} · ${ch.waves.length}波</div>`
+      : `<div class="ch-lock">🔒</div>
+         <div class="ch-name">${ch.name}</div>
+         <div style="color:#3a4a4a;font-size:10px">通关上一章解锁</div>`;
+    if(unlocked){
+      div.addEventListener('click',()=>{startGame(idx);});
+    }
+    list.appendChild(div);
+  });
+}
+
+// Upgrade system
+function renderUpgrades(){
+  document.getElementById('qi-amount').textContent = save.qi;
+  const grid = document.getElementById('upgrade-grid');
+  grid.innerHTML = '';
+  UPGRADES.forEach(u=>{
+    const lv = save.upgrades[u.id]||0;
+    const maxed = lv >= u.maxLv;
+    const cost = maxed ? 0 : u.costs[lv];
+    const canBuy = !maxed && save.qi >= cost;
+    const div = document.createElement('div');
+    div.className = 'up-node'+(maxed?' maxed':'');
+    div.innerHTML = `<div class="up-icon">${u.icon}</div>
+      <div class="up-name">${u.name}</div>
+      <div class="up-level">${'▮'.repeat(lv)}${'▯'.repeat(u.maxLv-lv)}</div>
+      <div class="up-cost">${maxed?'已满':'¥'+cost}</div>`;
+    if(!maxed && canBuy){
+      div.style.cursor = 'pointer';
+      div.addEventListener('click',()=>{
+        if(save.qi >= cost){
+          save.qi -= cost;
+          save.upgrades[u.id] = (save.upgrades[u.id]||0)+1;
+          saveData(save);
+          renderUpgrades();
+        }
+      });
+    }
+    grid.appendChild(div);
+  });
+}
+
+// Death screen buttons
+document.getElementById('death-retry').addEventListener('click',()=>{
+  startGame(currentChapter);
+});
+document.getElementById('death-menu').addEventListener('click',()=>{
+  save = loadData();
+  showPage('page-menu');
+  state='MENU';
+});
+
+// Victory screen buttons
+document.getElementById('victory-retry').addEventListener('click',()=>{
+  startGame(currentChapter);
+});
+document.getElementById('victory-menu').addEventListener('click',()=>{
+  save = loadData();
+  showPage('page-menu');
+  state='MENU';
+});
+
+// =============================================================
+// INIT
+// =============================================================
+save = loadData();
+showPage('page-story');
+state='STORY';
 initPlayer();
-loop();
 </script>
 </body>
 </html>
