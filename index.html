@@ -155,7 +155,7 @@ function autoShoot() {
   const pow = powerupTimer>0;
   autoCD = pow?6:8;
   // Fast, straight, big arrow
-  arrows.push({x:playerX, y:playerCY()-10, vx:0, vy:-25, dmg:pow?2:1, size:pow?14:10, life:30, pow});
+  arrows.push({x:playerX, y:playerCY()-10, vx:0, vy:-25, dmg:pow?2:1, size:pow?14:10, life:Math.ceil(playerCY()/25)+5, pow});
   screenShake(pow?3:1.5);
 }
 
