@@ -102,7 +102,7 @@ let boss = null, bossStunned = false, powerupTimer = 0;
 let fingerX = false, comboCount = 0, comboTimer = 0;
 let deathReason = '';
 let waveTextTimer = 0, waveTextStr = '';
-let playerStunTimer = 0, hitFreeze = 0;
+let playerStunTimer = 0, hitFreeze = 0, invincibleTimer = 0;
 
 function initPlayer() { playerX = W/2; }
 
@@ -141,7 +141,8 @@ function nextWave() {
   }
   spawnTimer=0;
   state='PLAYING';
-  // Heal 1 HP between waves so player doesn't die immediately
+  // Invincibility at wave start: 1.5s (90 frames)
+  invincibleTimer = 90;
   hp = Math.min(maxHp, hp + 1);
 }
 
@@ -178,7 +179,9 @@ function update() {
   frame++;
   applyShake();
   if (waveTextTimer>0) waveTextTimer--;
-  if (hitFreeze>0) { hitFreeze--; return; } // Hit-freeze: frame pause on impact
+  if (hitFreeze>0) { hitFreeze--; return; }
+  // Player invincibility frames at wave start
+  if (invincibleTimer>0) invincibleTimer--;
 
   // Player stun timer
   if (playerStunTimer>0) {
@@ -237,7 +240,7 @@ function update() {
     // Hit player
     const dx=e.x-playerX, dy=e.y-playerCY();
     if(dx*dx+dy*dy<(playerR+e.w*0.5)*(playerR+e.w*0.5)){
-      if(!e.hit){e.hit=true;takeDamage(1);}
+      if(!e.hit&&invincibleTimer<=0){e.hit=true;takeDamage(1);}
       enemies.splice(i,1);
     }
   }
@@ -593,6 +596,12 @@ function draw() {
   else{grad.addColorStop(0,'rgba(160,120,100,0.08)');grad.addColorStop(1,'rgba(160,120,100,0)');}
   mc.fillStyle=grad;mc.beginPath();mc.arc(px,py,glowR,0,Math.PI*2);mc.fill();
 
+  // Invincibility flash
+  if(invincibleTimer>0 && Math.floor(invincibleTimer/6)%2===0){
+    mc.beginPath();mc.arc(px,py,playerR+6,0,Math.PI*2);
+    mc.strokeStyle='rgba(212,160,80,0.35)';mc.lineWidth=3;mc.stroke();
+  }
+
   // Hitbox circle
   mc.beginPath();mc.arc(px,py,playerR,0,Math.PI*2);
   mc.strokeStyle=isStunned?'rgba(200,40,40,0.3)':powerupTimer>0?'rgba(212,160,80,0.3)':'rgba(160,120,100,0.15)';
@@ -636,7 +645,7 @@ function restart(){
   enemies=[];arrows=[];particles=[];boss=null;powerupTimer=0;
   bossStunned=false;spawnQ=[];spawnTimer=0;wave=0;shakeIntensity=0;
   fingerX=false;autoCD=0;deathReason='';waveTextTimer=0;
-  playerStunTimer=0;hitFreeze=0;
+  playerStunTimer=0;hitFreeze=0;invincibleTimer=0;
   wheelOverlay.classList.remove('active');wheelHint.style.display='none';
   stunOverlay.classList.remove('active');
   deathOverlay.classList.add('hidden');startOverlay.classList.add('hidden');
