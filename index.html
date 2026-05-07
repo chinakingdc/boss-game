@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>弹幕防线 · 第一关</title>
+<title>弹幕防线 · 试玩版</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{background:#070505;display:flex;justify-content:center;align-items:center;height:100dvh;overflow:hidden;font-family:"PingFang SC","Hirayino Sans GB","Microsoft YaHei",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -19,6 +19,10 @@ canvas#wheel-canvas{width:100%;height:100%}
 #wheel-rating{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%) scale(0);pointer-events:none;z-index:30;transition:transform 0.1s cubic-bezier(0.34,1.56,0.64,1)}
 #wheel-rating.show{transform:translate(-50%,-60%) scale(1)}
 #wheel-rating span{font-size:38px;font-weight:700;letter-spacing:6px;text-shadow:0 0 50px currentColor}
+#stun-overlay{position:absolute;inset:0;z-index:15;display:none;align-items:center;justify-content:center;pointer-events:none;background:rgba(80,20,20,0)}
+#stun-overlay.active{display:flex;background:rgba(80,20,20,0.2);transition:background 0.2s}
+#stun-text{color:#ff4040;font-size:32px;font-weight:bold;letter-spacing:12px;text-shadow:0 0 40px #ff4040,0 0 80px #ff2020;animation:stunPulse 0.3s ease-in-out infinite alternate}
+@keyframes stunPulse{from{opacity:0.6;transform:scale(1)}to{opacity:1;transform:scale(1.05)}}
 .death-screen{z-index:60}.btn{padding:12px 44px;border:1px solid rgba(160,120,100,0.3);background:transparent;color:#b09080;font-size:15px;letter-spacing:6px;cursor:pointer;transition:all 0.25s;font-family:inherit;border-radius:2px}
 .btn:active{background:rgba(160,120,100,0.08);border-color:#a08060}
 .title-main{font-size:38px;font-weight:700;letter-spacing:8px;color:#b09080;margin-bottom:2px}
@@ -32,6 +36,7 @@ canvas#wheel-canvas{width:100%;height:100%}
 <body>
 <div id="game">
   <canvas id="main"></canvas>
+  <div id="stun-overlay"><div id="stun-text">瘫痪</div></div>
   <div id="wheel-hint">催动内力 · 记住顺序</div>
   <div class="wheel-bg" id="wheel-overlay">
     <div id="wheel-wrap">
@@ -42,7 +47,7 @@ canvas#wheel-canvas{width:100%;height:100%}
   <div id="start-overlay" class="overlay">
     <div class="title-deco fade-in"></div>
     <div class="title-main fade-in fade-in-d1">弹 幕 防 线</div>
-    <div class="title-sub fade-in fade-in-d2">· 第 一 关 ·</div>
+    <div class="title-sub fade-in fade-in-d2">· 试 玩 版 ·</div>
     <div class="fade-in fade-in-d2" style="color:#8a7a6a;font-size:12px;letter-spacing:3px;line-height:2;text-align:center;margin-bottom:24px">
       <div>滑动屏幕 · 左右走位</div>
       <div>弓箭自动 · 向上射击</div>
@@ -74,12 +79,8 @@ function resize() {
 resize(); window.addEventListener('resize', resize);
 
 // ===== LAYOUT CONSTANTS =====
-const BTM_BAR = 0.12; // bottom 12% for HUD
-const PLAYER_ZONE = 0.16; // 16% for player area (above HUD bar)
-// Player center Y = (1 - BTM_BAR - PLAYER_ZONE/2) * H = player at ~80% from top
-const GAME_TOP = 0.05; // 5% top margin
-// Game action area: from GAME_TOP to (1 - BTM_BAR - PLAYER_ZONE)
-
+const BTM_BAR = 0.12;
+const PLAYER_ZONE = 0.16;
 function playerCY() { return H * (1 - BTM_BAR - PLAYER_ZONE * 0.4); }
 function hudTopY() { return H * (1 - BTM_BAR); }
 
@@ -89,29 +90,34 @@ const wheelHint = document.getElementById('wheel-hint');
 const wheelRating = document.getElementById('wheel-rating');
 const startOverlay = document.getElementById('start-overlay');
 const deathOverlay = document.getElementById('death-overlay');
+const stunOverlay = document.getElementById('stun-overlay');
 
 // ===== STATE =====
 let state = 'IDLE', hp = 5, maxHp = 5, score = 0, killCount = 0;
 let enemies = [], arrows = [], particles = [], shakeX = 0, shakeY = 0, shakeIntensity = 0;
 let wave = 0, spawnQ = [], spawnTimer = 0;
-let playerX, playerR = 22; // BIG player hitbox (circle radius)
+let playerX, playerR = 22;
 let frame = 0, autoCD = 0;
-let boss = null, bossStunned = false, powerupTimer = 0, bossSeqTimer = 0;
+let boss = null, bossStunned = false, powerupTimer = 0;
 let fingerX = false, comboCount = 0, comboTimer = 0;
 let deathReason = '';
 let waveTextTimer = 0, waveTextStr = '';
+let playerStunTimer = 0, hitFreeze = 0;
 
 function initPlayer() { playerX = W/2; }
 
 // ===== ENEMIES =====
 function makeSoldier() {
-  return { t:'s', x:W*0.1+Math.random()*W*0.8, y:-30, hp:2, mh:2, spd:0.7+Math.random()*0.4, w:20, h:24, f:0, hit:false };
+  return { t:'s', x:W*0.05+Math.random()*W*0.9, y:-20, hp:2, mh:2, spd:1.5+Math.random()*0.7, w:20, h:24, f:0, hit:false };
 }
 function makeElite() {
-  return { t:'e', x:W*0.15+Math.random()*W*0.7, y:-40, hp:5, mh:5, spd:0.5, w:26, h:32, f:0, a:0, hit:false };
+  return { t:'e', x:W*0.1+Math.random()*W*0.8, y:-25, hp:5, mh:5, spd:1.2+Math.random()*0.3, w:26, h:32, f:0, a:Math.random()*6, hit:false };
 }
 function makeBoss() {
-  return { t:'b', x:W/2, y:H*0.10, hp:12, mh:12, w:50, h:56, f:0, stunned:false };
+  return {
+    t:'b', x:W/2, y:-60, hp:14, mh:14, w:50, h:56, f:0, stunned:false,
+    isWalking:true, walkSpeed:0.45, walkTarget:H*0.22, skillTimer:150, skillActive:false
+  };
 }
 
 // ===== SHAKE =====
@@ -120,11 +126,19 @@ function screenShake(intensity) { shakeIntensity = intensity; }
 // ===== WAVES =====
 function nextWave() {
   wave++;
-  const names = ['第一波 · 斥候','第二波 · 精锐','第三波 · 暗渊'];
+  const names = ['第一波 · 斥候','第二波 · 精锐','第三波 · 暗渊魔将'];
   waveTextStr = wave<=3?names[wave-1]:''; waveTextTimer=90;
-  if (wave===1) { spawnQ=[]; for(let i=0;i<28;i++) spawnQ.push({d:i*8,t:'s'}); }
-  else if (wave===2) { spawnQ=[]; for(let i=0;i<20;i++) spawnQ.push({d:i*10,t:'s'}); for(let i=0;i<5;i++) spawnQ.push({d:150+i*25,t:'e'}); }
-  else if (wave===3) { spawnQ=[]; setTimeout(()=>{boss=makeBoss();bossSeqTimer=200;},500); }
+  if (wave===1) {
+    spawnQ=[]; for(let i=0;i<45;i++) spawnQ.push({d:i*6,t:'s'});
+  } else if (wave===2) {
+    spawnQ=[]; for(let i=0;i<30;i++) spawnQ.push({d:i*8,t:'s'});
+    for(let i=0;i<8;i++) spawnQ.push({d:160+i*25,t:'e'});
+  } else if (wave===3) {
+    spawnQ=[]; for(let i=0;i<20;i++) spawnQ.push({d:i*12,t:'s'});
+    setTimeout(()=>{
+      boss=makeBoss(); boss.walkTarget=H*0.22;
+    },600);
+  }
   spawnTimer=0;
   state='PLAYING';
 }
@@ -132,13 +146,14 @@ function nextWave() {
 // ===== AUTO SHOOT =====
 function autoShoot() {
   if (state!=='PLAYING'&&state!=='POWERUP') return;
+  if (playerStunTimer>0) return;
   autoCD--;
   if (autoCD>0) return;
   const pow = powerupTimer>0;
-  autoCD = pow?6:10;
-  // Straight shot — no random spread, big arrow
-  arrows.push({x:playerX, y:playerCY(), vx:0, vy:-15, dmg:pow?2:1, size:pow?12:8, life:150, pow});
-  screenShake(pow?2:1);
+  autoCD = pow?6:8;
+  // Fast, straight, big arrow
+  arrows.push({x:playerX, y:playerCY()-10, vx:0, vy:-25, dmg:pow?2:1, size:pow?14:10, life:180, pow});
+  screenShake(pow?3:1.5);
 }
 
 // ===== PARTICLES =====
@@ -151,37 +166,73 @@ function applyShake() {
   if (shakeIntensity > 0) {
     shakeX = (Math.random()-0.5)*shakeIntensity * dpr;
     shakeY = (Math.random()-0.5)*shakeIntensity * dpr;
-    shakeIntensity *= 0.85;
+    shakeIntensity *= 0.82;
     if (shakeIntensity < 0.5) shakeIntensity = 0;
   } else { shakeX = 0; shakeY = 0; }
 }
 
 // ===== UPDATE =====
-let waveCompleteDelay = 0;
-
 function update() {
   frame++;
   applyShake();
   if (waveTextTimer>0) waveTextTimer--;
+  if (hitFreeze>0) { hitFreeze--; return; } // Hit-freeze: frame pause on impact
+
+  // Player stun timer
+  if (playerStunTimer>0) {
+    playerStunTimer--;
+    if (playerStunTimer<=0) {
+      stunOverlay.classList.remove('active');
+      if (boss) {
+        // Boss resumes walking after stun
+        boss.isWalking = true;
+        boss.walkTarget = Math.min((boss.walkTarget||H*0.22) + H*0.06, H*0.55);
+        boss.skillTimer = 180;
+      }
+    }
+  }
 
   if (state==='PLAYING'||state==='POWERUP') autoShoot();
-  if (powerupTimer>0) {powerupTimer--;if(powerupTimer<=0){powerupTimer=0;state='PLAYING';}}
-  if (boss&&state==='PLAYING'&&!bossStunned) {bossSeqTimer--;if(bossSeqTimer<=0)triggerWheel();}
+  if (powerupTimer>0) {
+    powerupTimer--;
+    if (powerupTimer<=0) { powerupTimer=0; state='PLAYING'; }
+  }
   if (comboTimer>0) comboTimer--;
+
+  // Boss AI — walking boss with periodic skill wheel
+  if (boss && state==='PLAYING' && !bossStunned && playerStunTimer<=0) {
+    if (boss.isWalking) {
+      // Walk toward target
+      if (boss.y < boss.walkTarget) { boss.y += boss.walkSpeed; }
+      else { boss.isWalking = false; boss.skillTimer = 180; }
+      // Sway while walking
+      boss.x += Math.sin(frame * 0.025) * 0.6;
+    } else {
+      // Stationary, charging skill
+      boss.skillTimer--;
+      if (boss.skillTimer <= 0) {
+        boss.skillActive = true;
+        triggerWheel();
+      }
+    }
+  }
 
   // Spawn
   if (spawnQ.length>0) {
     spawnTimer++;
-    while(spawnQ.length>0&&spawnQ[0].d<=spawnTimer){const q=spawnQ.shift();enemies.push(q.t==='s'?makeSoldier():makeElite());}
+    while(spawnQ.length>0&&spawnQ[0].d<=spawnTimer){
+      const q=spawnQ.shift();
+      enemies.push(q.t==='s'?makeSoldier():makeElite());
+    }
   }
 
   // Enemies
   for(let i=enemies.length-1;i>=0;i--){
     const e=enemies[i]; if(e.f>0)e.f--;
     if(e.t==='s') e.y+=e.spd;
-    else{e.a+=0.04;e.x+=Math.sin(e.a)*1.2;e.y+=e.spd;}
+    else{e.a+=0.04;e.x+=Math.sin(e.a)*1.5;e.y+=e.spd;}
     if(e.y>H+20){enemies.splice(i,1);continue;}
-    // Hit player — use CIRCLE collision (playerR = big hitbox)
+    // Hit player
     const dx=e.x-playerX, dy=e.y-playerCY();
     if(dx*dx+dy*dy<(playerR+e.w*0.5)*(playerR+e.w*0.5)){
       if(!e.hit){e.hit=true;takeDamage(1);}
@@ -189,7 +240,7 @@ function update() {
     }
   }
 
-  // Arrows — full screen range
+  // Arrows
   for(let i=arrows.length-1;i>=0;i--){
     const a=arrows[i]; a.x+=a.vx; a.y+=a.vy; a.life--;
     if(a.life<=0||a.y<-50||a.y>H+50){arrows.splice(i,1);continue;}
@@ -197,9 +248,19 @@ function update() {
     for(let e of enemies){
       if(Math.abs(a.x-e.x)<e.w&&Math.abs(a.y-e.y)<e.h){
         e.hp-=a.dmg; e.f=6;
-        burst(a.x,a.y,'#b08060',a.pow?8:4, a.pow?3:2);
-        screenShake(a.pow?4:2);
-        if(e.hp<=0){score+=e.t==='e'?30:10;killCount++;comboCount++;comboTimer=30;burst(e.x,e.y,'#b08060',12,4);screenShake(6);enemies.splice(i,1);}
+        // BIG impact particles
+        const numP = a.pow?14:8;
+        burst(a.x,a.y,'#d09060',numP, a.pow?4:3);
+        screenShake(a.pow?6:3);
+        // Hit-freeze for impact feel
+        hitFreeze = 1;
+        if(e.hp<=0){
+          score+=e.t==='e'?30:10;killCount++;comboCount++;comboTimer=30;
+          burst(e.x,e.y,'#d08040',18,5);
+          screenShake(8);
+          enemies.splice(i,1);
+          hit=true; break;
+        }
         hit=true;break;
       }
     }
@@ -207,7 +268,7 @@ function update() {
       const dx=a.x-boss.x, dy=a.y-boss.y;
       if(Math.abs(dx)<boss.w&&Math.abs(dy)<boss.h){
         boss.hp-=Math.max(1,a.dmg-1);boss.f=6;
-        burst(a.x,a.y,'#b08060',4,2);
+        burst(a.x,a.y,'#c08050',6,3);
         if(boss.hp<=0){boss.hp=0;win();}
         updateBossHP();
         hit=true;
@@ -217,7 +278,10 @@ function update() {
   }
 
   // Particles
-  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=0.94;p.vy*=0.94;p.life--;if(p.life<=0)particles.splice(i,1);}
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy*=0.92;p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
 
   // Wave transition
   if(state==='PLAYING'){
@@ -226,25 +290,25 @@ function update() {
       else if(wave===2){state='WAVETRANS';setTimeout(()=>nextWave(),1200);}
     }
   }
-  if(state==='WAVETRANS'&&enemies.length===0&&spawnQ.length===0){
-    // waiting for timeout
+  // Wave 3: all done if boss dead and no enemies
+  if(state==='PLAYING' && wave===3 && boss && boss.hp<=0 && enemies.length===0 && spawnQ.length===0) {
+    win();
   }
 }
 
 // ===== PLAYER / DAMAGE =====
 function takeDamage(d) {
   hp-=d; if(hp<=0){hp=0;lose();return;}
-  screenShake(12);
-  burst(playerX,playerCY(),'#ff4040',10,4);
+  screenShake(16);
+  burst(playerX,playerCY(),'#ff4040',16,5);
   comboCount=0;
 }
 
-function updateBossHP(){/*boss HP drawn on canvas now*/}
+function updateBossHP(){/*boss HP drawn on canvas*/}
 
 function lose() {
   state='LOSE';
-  // Determine death reason
-  if(boss&&boss.hp>0) deathReason='被 BOSS 反击 · 内力耗尽';
+  if(boss&&boss.hp>0) deathReason='被 BOSS 击败 · 内力耗尽';
   else if(hp<=0) deathReason='伤势过重 · 体力不支';
   else deathReason='未能突破 · 下次再来';
   document.getElementById('death-reason').textContent=deathReason;
@@ -330,9 +394,22 @@ function endWheel(r){
   setTimeout(()=>{
     wheelRating.classList.remove('show');wheelOverlay.classList.remove('active');
     if(ok||r==='优'){
+      // Success: boss takes damage + stunned
       if(boss){bossStunned=true;boss.f=20;const bd=ok?4:2;boss.hp-=bd;if(boss.hp<=0){boss.hp=0;win();return;}updateBossHP();}
-      state='POWERUP';powerupTimer=120;setTimeout(()=>{bossStunned=false;},180);bossSeqTimer=240;
-    }else{state='PLAYING';bossSeqTimer=180;}
+      state='POWERUP';powerupTimer=90;
+      setTimeout(()=>{
+        bossStunned=false;
+        // Boss resumes walking, moves further down
+        if(boss){boss.isWalking=true;boss.walkTarget=Math.min((boss.walkTarget||H*0.22)+H*0.08,H*0.55);}
+      },150);
+    } else {
+      // Failure: player paralyzed 3 seconds
+      state='PLAYING';
+      playerStunTimer=180;
+      stunOverlay.classList.add('active');
+      // Boss backs off slightly
+      if(boss){boss.isWalking=false;boss.skillTimer=240;}
+    }
   },500);
 }
 
@@ -357,8 +434,8 @@ wCanvas.addEventListener('pointerdown',(e)=>{
 });
 
 // ===== TOUCH =====
-canvas.addEventListener('pointerdown',(e)=>{e.preventDefault();if(state==='PLAYING'||state==='POWERUP'){fingerX=e.clientX;updatePlayer(e.clientX);}});
-canvas.addEventListener('pointermove',(e)=>{e.preventDefault();if(fingerX!==false&&(state==='PLAYING'||state==='POWERUP'))updatePlayer(e.clientX);});
+canvas.addEventListener('pointerdown',(e)=>{e.preventDefault();if((state==='PLAYING'||state==='POWERUP')&&playerStunTimer<=0){fingerX=e.clientX;updatePlayer(e.clientX);}});
+canvas.addEventListener('pointermove',(e)=>{e.preventDefault();if(fingerX!==false&&(state==='PLAYING'||state==='POWERUP')&&playerStunTimer<=0)updatePlayer(e.clientX);});
 canvas.addEventListener('pointerup',()=>{fingerX=false;});
 canvas.addEventListener('pointerleave',()=>{fingerX=false;});
 function updatePlayer(cx){const r=canvas.getBoundingClientRect();playerX=((cx-r.left)/r.width)*W;playerX=Math.max(playerR+5,Math.min(W-playerR-5,playerX));}
@@ -371,19 +448,16 @@ function draw() {
   // Background
   mc.fillStyle='#070505';mc.fillRect(0,0,W,H);
   
-  // Background layers — ink wash depth
   // Far mountains
   mc.fillStyle='rgba(40,30,25,0.3)';
   mc.beginPath();mc.moveTo(0,H*0.3);mc.quadraticCurveTo(W*0.2,H*0.15,W*0.4,H*0.25);mc.quadraticCurveTo(W*0.6,H*0.35,W*0.8,H*0.2);mc.quadraticCurveTo(W,H*0.15,W,H*0.3);mc.lineTo(W,H*0.5);mc.lineTo(0,H*0.5);mc.closePath();mc.fill();
-  
   // Mid mountains
   mc.fillStyle='rgba(30,22,18,0.4)';
   mc.beginPath();mc.moveTo(0,H*0.42);mc.quadraticCurveTo(W*0.3,H*0.3,W*0.5,H*0.38);mc.quadraticCurveTo(W*0.7,H*0.45,W,H*0.35);mc.lineTo(W,H*0.55);mc.lineTo(0,H*0.55);mc.closePath();mc.fill();
 
-  // HUD Bottom Bar — scroll panel
+  // HUD Bottom Bar
   mc.fillStyle='rgba(12,8,6,0.85)';
   mc.fillRect(0,hudTopY(),W,BTM_BAR*H);
-  // Scroll top line
   mc.strokeStyle='rgba(160,120,100,0.2)';mc.lineWidth=1;
   mc.beginPath();mc.moveTo(0,hudTopY());mc.lineTo(W,hudTopY());mc.stroke();
   
@@ -396,7 +470,7 @@ function draw() {
 
   // Score
   mc.textAlign='right';
-  mc.fillText(`得分 ${score}`, W-16*dpr, hudTopY()+BTM_BAR*H*0.4);
+  mc.fillText(`得分 ${score}击杀 ${killCount}`, W-16*dpr, hudTopY()+BTM_BAR*H*0.4);
 
   // Combo
   if(comboTimer>0&&comboCount>=3){
@@ -419,25 +493,24 @@ function draw() {
     mc.globalAlpha=1;
   }
 
-  // Enemies
-  for(let e of enemies){
-    const fl=e.f>0;
-    if(e.t==='s'){
-      mc.fillStyle=fl?'#fff':'#5a4040';
-      mc.font=Math.round(dpr*18)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
-      mc.fillText('兵',e.x,e.y);
-      // Ink splash for hit flash
-      if(fl>3){mc.beginPath();mc.arc(e.x,e.y,15,0,Math.PI*2);mc.fillStyle='rgba(255,255,255,0.08)';mc.fill();}
-    }else{
-      mc.fillStyle=fl?'#fff':'#8a6040';
-      mc.font=Math.round(dpr*22)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
-      mc.fillText('将',e.x,e.y);
-    }
+  // Boss stun warning label
+  if (boss && !boss.isWalking && !boss.stunned && boss.skillTimer>0 && boss.skillTimer<120 && state==='PLAYING') {
+    mc.fillStyle='#b09850'; mc.font='bold '+Math.round(dpr*12)+'px sans-serif';
+    mc.textAlign='center'; mc.textBaseline='middle';
+    const pulse = Math.sin(frame*0.15)*0.3+0.7;
+    mc.globalAlpha=pulse;
+    mc.fillText('⚠ 蓄力 · 准备破招', boss.x, boss.y+48*dpr);
+    mc.globalAlpha=1;
   }
 
   // Boss
   if(boss){
     const fl=boss.f>0,stun=bossStunned;
+    // Boss glow aura
+    mc.beginPath();mc.arc(boss.x,boss.y,38,0,Math.PI*2);
+    const aura = stun?0.15:(boss.isWalking?0.04:0.08+Math.sin(frame*0.08)*0.04);
+    mc.fillStyle=`rgba(80,40,40,${aura})`;mc.fill();
+    
     if(stun){
       mc.beginPath();mc.arc(boss.x,boss.y,35,0,Math.PI*2);
       const pulse=0.08+Math.sin(frame*0.1)*0.04;
@@ -449,22 +522,36 @@ function draw() {
     mc.fillStyle='rgba(100,70,50,0.4)';mc.font=Math.round(dpr*10)+'px sans-serif';
     mc.fillText('· 黯 渊 ·',boss.x,boss.y-36*dpr);
     if(stun){mc.fillStyle='#d4a050';mc.font='bold '+Math.round(dpr*12)+'px sans-serif';mc.fillText('破绽！',boss.x,boss.y+36*dpr);}
-    if(bossSeqTimer<120&&bossSeqTimer>0&&!stun&&state==='PLAYING'){mc.fillStyle='#b09850';mc.font=Math.round(dpr*10)+'px sans-serif';mc.fillText('··· 蓄力 ···',boss.x,boss.y+40*dpr);}
     // Boss HP bar
     const bw=W*0.5,bh=6*dpr,bx=W/2-bw/2,by=boss.y+30*dpr;
     mc.fillStyle='rgba(60,30,30,0.5)';mc.fillRect(bx,by,bw,bh);
     if(boss.hp>0){mc.fillStyle='#b05040';mc.fillRect(bx,by,bw*(boss.hp/boss.mh),bh);}
   }
 
-  // Arrows — full screen range, drawn as big arrow shapes
+  // Enemies
+  for(let e of enemies){
+    const fl=e.f>0;
+    if(e.t==='s'){
+      mc.fillStyle=fl?'#fff':'#5a4040';
+      mc.font=Math.round(dpr*18)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
+      mc.fillText('兵',e.x,e.y);
+      if(fl>3){mc.beginPath();mc.arc(e.x,e.y,15,0,Math.PI*2);mc.fillStyle='rgba(255,255,255,0.08)';mc.fill();}
+    }else{
+      mc.fillStyle=fl?'#fff':'#8a6040';
+      mc.font=Math.round(dpr*22)+'px sans-serif';mc.textAlign='center';mc.textBaseline='middle';
+      mc.fillText('将',e.x,e.y);
+    }
+  }
+
+  // Arrows — big arrow shapes, fast
   for(let a of arrows){
     const headSize = a.size * 2.5;
-    // Shaft
+    // Shaft glow
     mc.strokeStyle=a.pow?'#d4a050':'#b09080';
     mc.lineWidth=a.size;
-    mc.shadowColor=a.pow?'#d4a050':'transparent';
-    mc.shadowBlur=a.pow?15:0;
-    mc.beginPath();mc.moveTo(a.x,a.y);mc.lineTo(a.x,a.y+40);mc.stroke();
+    mc.shadowColor=a.pow?'#d4a050':'rgba(176,144,128,0.3)';
+    mc.shadowBlur=a.pow?20:8;
+    mc.beginPath();mc.moveTo(a.x,a.y);mc.lineTo(a.x,a.y+50);mc.stroke();
     // Arrowhead
     mc.beginPath();
     mc.moveTo(a.x,a.y);
@@ -473,7 +560,14 @@ function draw() {
     mc.closePath();
     mc.fillStyle=a.pow?'#d4a050':'#b09080';
     mc.fill();
+    // Motion trail
     mc.shadowBlur=0;
+    mc.globalAlpha=0.15;
+    mc.beginPath();mc.moveTo(a.x,a.y+8);mc.lineTo(a.x,a.y+38);
+    mc.strokeStyle=a.pow?'#d4a050':'#b09080';
+    mc.lineWidth=a.size*0.5;
+    mc.stroke();
+    mc.globalAlpha=1;
   }
 
   // Particles
@@ -484,27 +578,31 @@ function draw() {
   }
   mc.globalAlpha=1;
 
-  // Player — BIG circular hitbox
+  // Player
   const px=playerX, py=playerCY();
+  // Player stun visual
+  const isStunned = playerStunTimer>0;
+  
   // Player glow
-  const glowR=powerupTimer>0?playerR*2.5:playerR*1.8;
+  const glowR=powerupTimer>0?playerR*2.8:(isStunned?playerR*1.2:playerR*1.8);
   const grad=mc.createRadialGradient(px,py,0,px,py,glowR);
-  if(powerupTimer>0){grad.addColorStop(0,'rgba(212,160,80,0.15)');grad.addColorStop(1,'rgba(212,160,80,0)');}
+  if(isStunned){grad.addColorStop(0,'rgba(200,40,40,0.12)');grad.addColorStop(1,'rgba(200,40,40,0)');}
+  else if(powerupTimer>0){grad.addColorStop(0,'rgba(212,160,80,0.15)');grad.addColorStop(1,'rgba(212,160,80,0)');}
   else{grad.addColorStop(0,'rgba(160,120,100,0.08)');grad.addColorStop(1,'rgba(160,120,100,0)');}
   mc.fillStyle=grad;mc.beginPath();mc.arc(px,py,glowR,0,Math.PI*2);mc.fill();
 
-  // Hitbox circle (visual indicator)
+  // Hitbox circle
   mc.beginPath();mc.arc(px,py,playerR,0,Math.PI*2);
-  mc.strokeStyle=powerupTimer>0?'rgba(212,160,80,0.3)':'rgba(160,120,100,0.15)';
+  mc.strokeStyle=isStunned?'rgba(200,40,40,0.3)':powerupTimer>0?'rgba(212,160,80,0.3)':'rgba(160,120,100,0.15)';
   mc.lineWidth=2;mc.setLineDash([4,6]);mc.stroke();mc.setLineDash([]);
 
-  // Player character — larger
-  mc.fillStyle=powerupTimer>0?'#d4a050':'#b09080';
+  // Player character
+  mc.fillStyle=isStunned?'#903030':powerupTimer>0?'#d4a050':'#b09080';
   mc.font='bold '+Math.round(dpr*28)+'px sans-serif';
   mc.textAlign='center';mc.textBaseline='middle';
   mc.fillText('弓',px,py-8*dpr);
   // Bow
-  mc.strokeStyle=powerupTimer>0?'#d4a050':'#8a7a6a';mc.lineWidth=2;
+  mc.strokeStyle=isStunned?'#603030':powerupTimer>0?'#d4a050':'#8a7a6a';mc.lineWidth=2;
   mc.beginPath();mc.arc(px+18*dpr,py-10*dpr,20*dpr,-Math.PI*0.4,Math.PI*0.4);
   mc.stroke();
 
@@ -524,6 +622,7 @@ function loop() {
   if(state==='PLAYING'||state==='POWERUP') update();
   if(state==='WHEEL'){update();updateWheel();}
   if(state==='WAVETRANS') update();
+  if(state==='STUNNED') update();
   draw();
   if(state==='WHEEL') drawWheel();
   requestAnimationFrame(loop);
@@ -532,10 +631,12 @@ function loop() {
 // ===== RESTART =====
 function restart(){
   state='IDLE';hp=5;score=0;killCount=0;comboCount=0;comboTimer=0;
-  enemies=[];arrows=[];particles=[];boss=null;powerupTimer=0;bossSeqTimer=0;
+  enemies=[];arrows=[];particles=[];boss=null;powerupTimer=0;
   bossStunned=false;spawnQ=[];spawnTimer=0;wave=0;shakeIntensity=0;
   fingerX=false;autoCD=0;deathReason='';waveTextTimer=0;
+  playerStunTimer=0;hitFreeze=0;
   wheelOverlay.classList.remove('active');wheelHint.style.display='none';
+  stunOverlay.classList.remove('active');
   deathOverlay.classList.add('hidden');startOverlay.classList.add('hidden');
   initPlayer();state='PLAYING';nextWave();
 }
